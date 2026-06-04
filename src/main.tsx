@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 
+import "./index.css";
 import Start from "./routes/Start";
 import Setup from "./routes/Setup";
 import Interview from "./routes/Interview";

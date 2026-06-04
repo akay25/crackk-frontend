@@ -6,50 +6,70 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getReport, type CompetencyScore, type Report as ReportData } from "../lib/api";
+import { Alert, Button, Card, Shell, Spinner } from "../components/ui";
 
-const wrap = { maxWidth: 760, margin: "3rem auto", fontFamily: "system-ui" } as const;
 const POLL_MS = 4000;
 
-function scoreColor(score: number): string {
-  if (score >= 75) return "#16a34a";
-  if (score >= 50) return "#ca8a04";
-  return "#dc2626";
+function tone(score: number) {
+  if (score >= 75) return { text: "text-emerald-600", bar: "bg-emerald-500", ring: "text-emerald-500" };
+  if (score >= 50) return { text: "text-amber-600", bar: "bg-amber-500", ring: "text-amber-500" };
+  return { text: "text-rose-600", bar: "bg-rose-500", ring: "text-rose-500" };
 }
 
-function ScoreBar({ score }: { score: number }) {
+function ScoreRing({ score }: { score: number }) {
+  const r = 34;
+  const c = 2 * Math.PI * r;
+  const pct = Math.max(0, Math.min(100, score));
+  const t = tone(score);
   return (
-    <div style={{ background: "#eee", borderRadius: 4, height: 10, width: "100%" }}>
-      <div
-        style={{
-          width: `${Math.max(0, Math.min(100, score))}%`,
-          background: scoreColor(score),
-          height: "100%",
-          borderRadius: 4,
-        }}
-      />
+    <div className="relative size-24 shrink-0">
+      <svg viewBox="0 0 80 80" className="size-24 -rotate-90">
+        <circle cx="40" cy="40" r={r} fill="none" stroke="currentColor" strokeWidth="8" className="text-slate-200" />
+        <circle
+          cx="40"
+          cy="40"
+          r={r}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="8"
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={c - (pct / 100) * c}
+          className={t.ring}
+        />
+      </svg>
+      <div className={"absolute inset-0 grid place-items-center text-2xl font-bold " + t.text}>
+        {score}
+      </div>
     </div>
   );
 }
 
 function Competency({ c }: { c: CompetencyScore }) {
+  const t = tone(c.score);
   return (
-    <section style={{ margin: "1rem 0" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-        <h3 style={{ margin: 0, textTransform: "capitalize" }}>{c.key.replace(/[_-]/g, " ")}</h3>
-        <strong style={{ color: scoreColor(c.score) }}>{c.score}</strong>
+    <Card>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="font-semibold capitalize text-slate-900">{c.key.replace(/[_-]/g, " ")}</h3>
+        <span className={"text-sm font-bold " + t.text}>{c.score}</span>
       </div>
-      <ScoreBar score={c.score} />
-      {c.rationale && <p style={{ margin: ".5rem 0 0" }}>{c.rationale}</p>}
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+        <div className={"h-full rounded-full " + t.bar} style={{ width: `${Math.max(0, Math.min(100, c.score))}%` }} />
+      </div>
+      {c.rationale && <p className="mt-3 text-sm text-slate-600">{c.rationale}</p>}
       {c.evidence_quotes.length > 0 && (
-        <ul style={{ margin: ".5rem 0 0", paddingLeft: "1.1rem" }}>
+        <div className="mt-3 space-y-2">
           {c.evidence_quotes.map((q, i) => (
-            <li key={i} style={{ color: "#555" }}>
-              <em>“{q}”</em>
-            </li>
+            <blockquote
+              key={i}
+              className="border-l-2 border-indigo-300 bg-slate-50 px-3 py-2 text-sm italic text-slate-600"
+            >
+              “{q}”
+            </blockquote>
           ))}
-        </ul>
+        </div>
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -90,90 +110,105 @@ export default function Report() {
   }, [load]);
 
   if (report) {
+    const t = tone(report.overall_score);
     return (
-      <main style={wrap}>
-        <h1>Interview Report</h1>
-        <p style={{ opacity: 0.6 }}>Session: {id}</p>
+      <Shell max="max-w-3xl">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Interview Report</h1>
+        <p className="mt-1 font-mono text-xs text-slate-400">{id}</p>
 
-        <section
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 16,
-            border: "1px solid #ddd",
-            borderRadius: 8,
-            padding: "1rem 1.25rem",
-            margin: "1rem 0",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "2.5rem",
-              fontWeight: 700,
-              color: scoreColor(report.overall_score),
-            }}
-          >
-            {report.overall_score}
-          </div>
+        {/* Overall */}
+        <Card className="mt-5 flex items-center gap-6 bg-gradient-to-br from-white to-indigo-50/40">
+          <ScoreRing score={report.overall_score} />
           <div>
-            <div style={{ fontWeight: 600 }}>Overall score</div>
-            <div style={{ opacity: 0.6 }}>out of 100</div>
+            <div className="text-sm font-medium text-slate-500">Overall score</div>
+            <div className={"text-lg font-semibold " + t.text}>
+              {report.overall_score >= 75 ? "Strong" : report.overall_score >= 50 ? "Solid" : "Needs work"}
+            </div>
+            <p className="mt-1 max-w-md text-sm text-slate-600">{report.recommendations}</p>
           </div>
-        </section>
+        </Card>
 
-        <h2>Competencies</h2>
-        {report.per_competency.map((c) => (
-          <Competency key={c.key} c={c} />
-        ))}
+        <h2 className="mt-8 text-lg font-semibold text-slate-900">Competencies</h2>
+        <div className="mt-3 space-y-4">
+          {report.per_competency.map((c) => (
+            <Competency key={c.key} c={c} />
+          ))}
+        </div>
 
         {report.strengths.length > 0 && (
           <>
-            <h2>Strengths</h2>
-            <ul>
+            <h2 className="mt-8 text-lg font-semibold text-slate-900">Strengths</h2>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
               {report.strengths.map((s, i) => (
-                <li key={i}>{s}</li>
+                <div
+                  key={i}
+                  className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50/60 px-3.5 py-2.5 text-sm text-slate-700"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" className="mt-0.5 size-4 shrink-0 text-emerald-600" stroke="currentColor" strokeWidth={2.5}>
+                    <path d="m5 13 4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  {s}
+                </div>
               ))}
-            </ul>
+            </div>
           </>
         )}
 
         {report.improvements.length > 0 && (
           <>
-            <h2>Areas to improve</h2>
-            {report.improvements.map((imp, i) => (
-              <div key={i} style={{ margin: "0 0 1rem" }}>
-                <strong>{imp.area}</strong>
-                <p style={{ margin: ".25rem 0" }}>{imp.why}</p>
-                {imp.how && (
-                  <p style={{ margin: 0, color: "#555" }}>
-                    <em>Next step:</em> {imp.how}
-                  </p>
-                )}
-              </div>
-            ))}
+            <h2 className="mt-8 text-lg font-semibold text-slate-900">Areas to improve</h2>
+            <div className="mt-3 space-y-3">
+              {report.improvements.map((imp, i) => (
+                <Card key={i}>
+                  <h3 className="font-semibold text-slate-900">{imp.area}</h3>
+                  <p className="mt-1 text-sm text-slate-600">{imp.why}</p>
+                  {imp.how && (
+                    <p className="mt-2 rounded-lg bg-indigo-50 px-3 py-2 text-sm text-indigo-800">
+                      <span className="font-semibold">Next step:</span> {imp.how}
+                    </p>
+                  )}
+                </Card>
+              ))}
+            </div>
           </>
         )}
 
-        <h2>Recommendations</h2>
-        <p>{report.recommendations}</p>
-      </main>
+        <h2 className="mt-8 text-lg font-semibold text-slate-900">Recommendations</h2>
+        <Card className="mt-3">
+          <p className="text-slate-700">{report.recommendations}</p>
+        </Card>
+      </Shell>
     );
   }
 
   return (
-    <main style={wrap}>
-      <h1>Interview Report</h1>
-      <p style={{ opacity: 0.6 }}>Session: {id}</p>
-      {err ? (
-        <p style={{ color: "#b45309" }}>
-          The report isn't available yet. This page will keep checking.
-          <br />
-          <small style={{ opacity: 0.6 }}>{err}</small>
-        </p>
-      ) : (
-        pending && <p>Generating your report… this page updates automatically.</p>
-      )}
-      <button onClick={load}>Check now</button>
-    </main>
+    <Shell>
+      <h1 className="text-2xl font-bold tracking-tight text-slate-900">Interview Report</h1>
+      <p className="mt-1 font-mono text-xs text-slate-400">{id}</p>
+      <Card className="mt-5 text-center">
+        {err ? (
+          <>
+            <div className="mb-4 text-left">
+              <Alert tone="amber">
+                The report isn't available yet. This page keeps checking automatically.
+                <br />
+                <span className="text-xs opacity-70">{err}</span>
+              </Alert>
+            </div>
+          </>
+        ) : (
+          pending && (
+            <div className="flex flex-col items-center py-6">
+              <Spinner className="size-7 text-indigo-500" />
+              <p className="mt-3 font-medium text-slate-700">Generating your report…</p>
+              <p className="text-sm text-slate-500">This page updates automatically.</p>
+            </div>
+          )
+        )}
+        <Button variant="secondary" onClick={load} className="mt-2">
+          Check now
+        </Button>
+      </Card>
+    </Shell>
   );
 }
