@@ -1,6 +1,6 @@
 // Thin FastAPI client. The anonymous magic_token (also the user id) is read from
 // the URL (?token=) or localStorage and sent as a Bearer header on every call.
-// Endpoints mirror backend/contracts/openapi.yaml (contracts-v1).
+// Endpoints mirror backend/contracts/openapi.yaml (contracts-v2).
 
 const BASE = "/api";
 const TOKEN_KEY = "magic_token";
@@ -124,8 +124,8 @@ export interface ParsedProfile {
  * flight (404) or until the endpoint is published — the Setup preview degrades
  * gracefully to a "parsing…" state in that case.
  *
- * NOTE: pending contracts-v1.1 — see CONTRACT_REQUEST.md
- * (GET /sessions/{id}/resume -> ParsedProfile).
+ * Published in contracts-v2 (GET /sessions/{id}/resume -> ParsedProfile); 404
+ * while parsing is in flight.
  */
 export async function getResumeProfile(id: string): Promise<ParsedProfile | null> {
   let r: Response;

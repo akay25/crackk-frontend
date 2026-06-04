@@ -1,7 +1,7 @@
 // Setup screen: resume upload, job URL (with paste-JD fallback), and the
 // difficulty / pay / role form. Drives its UI by polling GET /sessions/:id and
 // reading status, has_resume, jd_source, has_blueprint. Authorized by the magic
-// token (route is token-guarded). Builds against contracts-v1.
+// token (route is token-guarded). Builds against contracts-v2.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -168,6 +168,10 @@ export default function Setup() {
   const hasConfig = !!session?.difficulty; // config sets difficulty -> status=ready
   const hasBlueprint = session?.has_blueprint ?? false;
   const ready = session?.status === "ready" || session?.status === "in_call";
+  // The backend rejects blueprint generation (409) unless a resume AND a JD are
+  // attached, so gate the button on steps 1–3 — not just status=ready (which only
+  // reflects that config was saved).
+  const canBuild = ready && hasResume && hasJd;
 
   const completed = [hasResume, hasJd, hasConfig, hasBlueprint].filter(Boolean).length;
 
@@ -445,7 +449,7 @@ export default function Setup() {
             Generates a tailored question blueprint from your resume and the JD.
           </p>
           <form onSubmit={onBuild} className="mt-3 flex flex-wrap items-center gap-3">
-            <Button type="submit" disabled={blueprintBusy || !ready}>
+            <Button type="submit" disabled={blueprintBusy || !canBuild}>
               {blueprintBusy ? (
                 <>
                   <Spinner /> Building…
@@ -456,7 +460,7 @@ export default function Setup() {
                 "Build interview"
               )}
             </Button>
-            {!ready && <span className="text-sm text-slate-500">Finish steps 1–3 first</span>}
+            {!canBuild && <span className="text-sm text-slate-500">Finish steps 1–3 first</span>}
           </form>
         </Step>
       </div>
