@@ -6,12 +6,14 @@ import Start from "./routes/Start";
 import Setup from "./routes/Setup";
 import Interview from "./routes/Interview";
 import Report from "./routes/Report";
+import RequireToken from "./lib/guard";
 
+// Every route except "/" is guarded by the magic token (redirects to "/").
 const router = createBrowserRouter([
   { path: "/", element: <Start /> },
-  { path: "/setup", element: <Setup /> },
-  { path: "/interview/:id", element: <Interview /> },
-  { path: "/report/:id", element: <Report /> },
+  { path: "/setup", element: <RequireToken><Setup /></RequireToken> },
+  { path: "/interview/:id", element: <RequireToken><Interview /></RequireToken> },
+  { path: "/report/:id", element: <RequireToken><Report /></RequireToken> },
 ]);
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

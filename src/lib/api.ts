@@ -4,6 +4,7 @@
 
 const BASE = "/api";
 const TOKEN_KEY = "magic_token";
+const SESSION_KEY = "session_id";
 
 export function getToken(): string | null {
   const fromUrl = new URLSearchParams(window.location.search).get("token");
@@ -15,13 +16,33 @@ export function setToken(token: string) {
   localStorage.setItem(TOKEN_KEY, token);
 }
 
+// The current session id is remembered so later screens (and a fresh tab opened
+// from the magic link) know which session is in flight.
+export function getSessionId(): string | null {
+  return localStorage.getItem(SESSION_KEY);
+}
+
+export function setSessionId(id: string) {
+  localStorage.setItem(SESSION_KEY, id);
+}
+
+/** Raised when a token-guarded call is rejected for missing/invalid auth. */
+export class UnauthorizedError extends Error {
+  constructor() {
+    super("unauthorized");
+    this.name = "UnauthorizedError";
+  }
+}
+
 async function req(path: string, init: RequestInit = {}): Promise<Response> {
   const token = getToken();
   const headers: Record<string, string> = {
     ...(init.headers as Record<string, string>),
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  return fetch(`${BASE}${path}`, { ...init, headers });
+  const r = await fetch(`${BASE}${path}`, { ...init, headers });
+  if (r.status === 401 || r.status === 403) throw new UnauthorizedError();
+  return r;
 }
 
 export interface CreateSessionResponse {
@@ -42,11 +63,25 @@ export interface Session {
   has_blueprint: boolean;
 }
 
+export type Difficulty = NonNullable<Session["difficulty"]>;
+
+export interface JobInput {
+  job_url?: string;
+  jd_text?: string;
+}
+
+export interface ConfigInput {
+  difficulty: Difficulty;
+  target_pay?: string;
+  role_title?: string;
+}
+
 export async function createSession(): Promise<CreateSessionResponse> {
   const r = await req("/sessions", { method: "POST" });
   if (!r.ok) throw new Error(`createSession failed: ${r.status}`);
   const data: CreateSessionResponse = await r.json();
   setToken(data.magic_token);
+  setSessionId(data.session_id);
   return data;
 }
 
@@ -54,6 +89,40 @@ export async function getSession(id: string): Promise<Session> {
   const r = await req(`/sessions/${id}`);
   if (!r.ok) throw new Error(`getSession failed: ${r.status}`);
   return r.json();
+}
+
+/** Upload resume (multipart). Returns once parsing is enqueued (202). */
+export async function uploadResume(id: string, file: File): Promise<void> {
+  const form = new FormData();
+  form.append("file", file);
+  const r = await req(`/sessions/${id}/resume`, { method: "POST", body: form });
+  if (!r.ok) throw new Error(`uploadResume failed: ${r.status}`);
+}
+
+/** Set the job URL (enqueues a scrape) or paste the JD text directly (202). */
+export async function setJob(id: string, input: JobInput): Promise<void> {
+  const r = await req(`/sessions/${id}/job`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!r.ok) throw new Error(`setJob failed: ${r.status}`);
+}
+
+/** Set difficulty / pay / role. Moves the session to status=ready (200). */
+export async function setConfig(id: string, input: ConfigInput): Promise<void> {
+  const r = await req(`/sessions/${id}/config`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!r.ok) throw new Error(`setConfig failed: ${r.status}`);
+}
+
+/** Kick off blueprint (question_gen) generation (202). */
+export async function buildBlueprint(id: string): Promise<void> {
+  const r = await req(`/sessions/${id}/blueprint`, { method: "POST" });
+  if (!r.ok) throw new Error(`buildBlueprint failed: ${r.status}`);
 }
 
 export interface JoinResponse {
@@ -65,5 +134,36 @@ export interface JoinResponse {
 export async function joinCall(id: string): Promise<JoinResponse> {
   const r = await req(`/sessions/${id}/join`, { method: "POST" });
   if (!r.ok) throw new Error(`joinCall failed: ${r.status}`);
+  return r.json();
+}
+
+// ---- Report (shape mirrors contracts/schemas/report.schema.json) ----
+
+export interface CompetencyScore {
+  key: string;
+  score: number;
+  rationale?: string;
+  evidence_quotes: string[];
+}
+
+export interface Improvement {
+  area: string;
+  why: string;
+  how?: string;
+}
+
+export interface Report {
+  overall_score: number;
+  per_competency: CompetencyScore[];
+  strengths: string[];
+  improvements: Improvement[];
+  recommendations: string;
+}
+
+/** Fetch the completed report. Returns null when not ready yet (404). */
+export async function getReport(id: string): Promise<Report | null> {
+  const r = await req(`/sessions/${id}/report`);
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error(`getReport failed: ${r.status}`);
   return r.json();
 }
