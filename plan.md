@@ -1,5 +1,12 @@
 # `frontend/` — React + Vite SPA
 
+> **Status (current):** Built + merged on `main`. Routes Start/Setup/Interview/Report
+> implemented; **Tailwind v4** via `@tailwindcss/vite` (no config files); token-guarded routes
+> (`lib/guard.tsx`); shared component kit (`components/ui.tsx`); typed client (`lib/api.ts`)
+> covering every endpoint incl. the resume-profile preview (`GET /sessions/:id/resume`). The
+> Interview screen uses `@livekit/components-react` (live captions + voice-assistant state).
+> `npm run build` clean.
+
 A **thin** client. Three screens, client-side routing, no SSR. The only reason JS exists here is
 that the WebRTC client + LiveKit room connection must run in the browser. The static build can be
 served by a CDN or by FastAPI.
