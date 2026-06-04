@@ -6,9 +6,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getReport, type CompetencyScore, type Report as ReportData } from "../lib/api";
+import { useSessionStatus } from "../lib/ws";
 import { Alert, Button, Card, Shell, Spinner } from "../components/ui";
-
-const POLL_MS = 4000;
 
 function tone(score: number) {
   if (score >= 75) return { text: "text-emerald-600", bar: "bg-emerald-500", ring: "text-emerald-500" };
@@ -97,17 +96,17 @@ export default function Report() {
     }
   }, [id]);
 
+  // Live status over WebSocket — no polling.
+  const statuses = useSessionStatus(id ?? null);
+
+  // Try once on arrival (the report may already be done), then fetch exactly when
+  // the report stage flips ready.
   useEffect(() => {
     load();
-    const t = setInterval(() => {
-      // Stop polling once we have the report.
-      setReport((cur) => {
-        if (!cur) load();
-        return cur;
-      });
-    }, POLL_MS);
-    return () => clearInterval(t);
   }, [load]);
+  useEffect(() => {
+    if (statuses?.report === "ready") load();
+  }, [statuses?.report, load]);
 
   if (report) {
     const t = tone(report.overall_score);

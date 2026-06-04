@@ -14,6 +14,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/api/, ""),
       },
+      // WebSocket status stream → FastAPI (same /ws path on the backend).
+      "/ws": {
+        target: "ws://localhost:8000",
+        ws: true,
+      },
     },
   },
 });

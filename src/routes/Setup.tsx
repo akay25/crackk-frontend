@@ -2,7 +2,7 @@
 // difficulty / pay / role form. Drives its UI by polling GET /sessions/:id and
 // reading status, has_resume, jd_source, has_blueprint. Authorized by the magic
 // token (route is token-guarded). Builds against contracts-v2.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   buildBlueprint,
@@ -29,9 +29,9 @@ import {
   Textarea,
 } from "../components/ui";
 import ResumeProfilePreview from "../components/ResumeProfilePreview";
+import { useSessionStatus } from "../lib/ws";
 
 const DIFFICULTIES: Difficulty[] = ["junior", "mid", "senior", "staff"];
-const POLL_MS = 2000;
 
 const STATUS_TONE: Record<Session["status"], "slate" | "green" | "amber" | "rose" | "indigo"> = {
   draft: "slate",
@@ -96,7 +96,6 @@ export default function Setup() {
   const [jdText, setJdText] = useState("");
   const [showPaste, setShowPaste] = useState(false);
   const [jobBusy, setJobBusy] = useState(false);
-  const jobSubmittedAt = useRef<number | null>(null);
 
   // Config
   const [difficulty, setDifficulty] = useState<Difficulty>("mid");
@@ -116,38 +115,38 @@ export default function Setup() {
     }
   }, [sessionId]);
 
-  // Poll session state so each step lights up as the backend completes work.
+  // Live status over WebSocket — no polling.
+  const statuses = useSessionStatus(sessionId);
+
+  // Initial load of the structured session fields.
   useEffect(() => {
     if (!sessionId) {
       setErr("No session found — start a new interview from the home page.");
       return;
     }
     refresh();
-    const t = setInterval(refresh, POLL_MS);
-    return () => clearInterval(t);
   }, [sessionId, refresh]);
 
-  // Once a resume is attached, poll for the parsed profile preview until it
-  // lands (parsing is async, and the endpoint may not be published yet).
-  const resumeAttached = session?.has_resume ?? false;
+  // Each time a stage flips (pushed over the WS), re-sync session fields so the
+  // steps light up. No interval — this fires only on actual change.
   useEffect(() => {
-    if (!sessionId || !resumeAttached || profile) return;
+    if (statuses) refresh();
+  }, [statuses, refresh]);
+
+  // Fetch the parsed-resume preview exactly once, when the resume stage is ready
+  // (no more 404-polling — the status flag tells us when it's available).
+  useEffect(() => {
+    if (!sessionId || statuses?.resume !== "ready" || profile) return;
     let active = true;
-    const fetchProfile = async () => {
-      try {
-        const p = await getResumeProfile(sessionId);
+    getResumeProfile(sessionId)
+      .then((p) => {
         if (active && p) setProfile(p);
-      } catch {
-        /* transient — the interval will retry */
-      }
-    };
-    fetchProfile();
-    const t = setInterval(fetchProfile, POLL_MS);
+      })
+      .catch(() => {});
     return () => {
       active = false;
-      clearInterval(t);
     };
-  }, [sessionId, resumeAttached, profile]);
+  }, [sessionId, statuses?.resume, profile]);
 
   if (!sessionId) {
     return (
@@ -164,9 +163,9 @@ export default function Setup() {
   }
 
   const hasResume = session?.has_resume ?? false;
-  const hasJd = !!session?.jd_source;
+  const hasJd = !!session?.jd_source || statuses?.jd === "ready";
   const hasConfig = !!session?.difficulty; // config sets difficulty -> status=ready
-  const hasBlueprint = session?.has_blueprint ?? false;
+  const hasBlueprint = (session?.has_blueprint ?? false) || statuses?.blueprint === "ready";
   const ready = session?.status === "ready" || session?.status === "in_call";
   // The backend rejects blueprint generation (409) unless a resume AND a JD are
   // attached, so gate the button on steps 1–3 — not just status=ready (which only
@@ -175,9 +174,9 @@ export default function Setup() {
 
   const completed = [hasResume, hasJd, hasConfig, hasBlueprint].filter(Boolean).length;
 
-  // A scrape can silently fail; the contract has no explicit failure status, so
-  // we surface the paste fallback if a submitted URL hasn't produced a JD yet.
-  const scrapeMaybeFailed = jobSubmittedAt.current !== null && !hasJd && !jobBusy;
+  // The JD scrape now has an explicit FAILED status — surface paste only on a
+  // real failure (no more guessing from a stalled poll).
+  const scrapeMaybeFailed = statuses?.jd === "failed";
 
   async function onResume(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -202,7 +201,6 @@ export default function Setup() {
     setJobBusy(true);
     try {
       await setJob(sessionId, { job_url: jobUrl.trim() });
-      jobSubmittedAt.current = Date.now();
       await refresh();
     } catch (e) {
       setErr(String(e));
