@@ -44,11 +44,6 @@ export default function Start() {
   return (
     <div className="min-h-screen">
       <div className="mx-auto flex max-w-2xl flex-col items-center px-5 py-16 text-center sm:py-24">
-        <Logo className="size-12" />
-        <Badge tone="indigo">
-          <span className="size-1.5 rounded-full bg-indigo-500" /> No sign-up · no email
-        </Badge>
-
         <h1 className="mt-5 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
           Practice the interview,
           <br />
