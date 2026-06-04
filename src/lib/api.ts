@@ -91,6 +91,54 @@ export async function getSession(id: string): Promise<Session> {
   return r.json();
 }
 
+// ---- Parsed resume profile (shape: contracts/schemas/parsed_profile.schema.json) ----
+
+export interface ExperienceItem {
+  title: string;
+  company: string;
+  start?: string;
+  end?: string;
+  highlights?: string[];
+}
+
+export interface EducationItem {
+  degree?: string;
+  institution?: string;
+  year?: string;
+}
+
+export interface ParsedProfile {
+  summary: string;
+  total_years_experience?: number;
+  skills: string[];
+  experience: ExperienceItem[];
+  education?: EducationItem[];
+  projects?: string[];
+  gaps?: string[];
+  parse_confidence?: "high" | "medium" | "low";
+}
+
+/**
+ * Fetch the structured profile the resume_parser extracted from the upload, so
+ * the candidate can preview/confirm it. Returns null while parsing is still in
+ * flight (404) or until the endpoint is published — the Setup preview degrades
+ * gracefully to a "parsing…" state in that case.
+ *
+ * NOTE: pending contracts-v1.1 — see CONTRACT_REQUEST.md
+ * (GET /sessions/{id}/resume -> ParsedProfile).
+ */
+export async function getResumeProfile(id: string): Promise<ParsedProfile | null> {
+  let r: Response;
+  try {
+    r = await req(`/sessions/${id}/resume`);
+  } catch {
+    return null; // endpoint not reachable yet — treat as "not ready"
+  }
+  if (r.status === 404 || r.status === 501) return null;
+  if (!r.ok) throw new Error(`getResumeProfile failed: ${r.status}`);
+  return r.json();
+}
+
 /** Upload resume (multipart). Returns once parsing is enqueued (202). */
 export async function uploadResume(id: string, file: File): Promise<void> {
   const form = new FormData();

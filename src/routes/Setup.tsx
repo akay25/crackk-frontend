@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   buildBlueprint,
+  getResumeProfile,
   getSession,
   getSessionId,
   setConfig,
@@ -13,6 +14,7 @@ import {
   uploadResume,
   type ConfigInput,
   type Difficulty,
+  type ParsedProfile,
   type Session,
 } from "../lib/api";
 import {
@@ -26,6 +28,7 @@ import {
   Spinner,
   Textarea,
 } from "../components/ui";
+import ResumeProfilePreview from "../components/ResumeProfilePreview";
 
 const DIFFICULTIES: Difficulty[] = ["junior", "mid", "senior", "staff"];
 const POLL_MS = 2000;
@@ -86,6 +89,7 @@ export default function Setup() {
 
   // Resume
   const [resumeBusy, setResumeBusy] = useState(false);
+  const [profile, setProfile] = useState<ParsedProfile | null>(null);
 
   // Job / JD
   const [jobUrl, setJobUrl] = useState("");
@@ -123,6 +127,28 @@ export default function Setup() {
     return () => clearInterval(t);
   }, [sessionId, refresh]);
 
+  // Once a resume is attached, poll for the parsed profile preview until it
+  // lands (parsing is async, and the endpoint may not be published yet).
+  const resumeAttached = session?.has_resume ?? false;
+  useEffect(() => {
+    if (!sessionId || !resumeAttached || profile) return;
+    let active = true;
+    const fetchProfile = async () => {
+      try {
+        const p = await getResumeProfile(sessionId);
+        if (active && p) setProfile(p);
+      } catch {
+        /* transient — the interval will retry */
+      }
+    };
+    fetchProfile();
+    const t = setInterval(fetchProfile, POLL_MS);
+    return () => {
+      active = false;
+      clearInterval(t);
+    };
+  }, [sessionId, resumeAttached, profile]);
+
   if (!sessionId) {
     return (
       <Shell>
@@ -154,6 +180,7 @@ export default function Setup() {
     if (!file || !sessionId) return;
     setErr(null);
     setResumeBusy(true);
+    setProfile(null); // re-uploading invalidates the previous parse preview
     try {
       await uploadResume(sessionId, file);
       await refresh();
@@ -273,7 +300,11 @@ export default function Setup() {
               <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" strokeLinecap="round" />
             </svg>
             <span className="mt-2 text-sm font-medium text-slate-700">
-              {resumeBusy ? "Uploading…" : "Click to upload PDF or DOCX"}
+              {resumeBusy
+                ? "Uploading…"
+                : hasResume
+                  ? "Click to replace your resume"
+                  : "Click to upload PDF or DOCX"}
             </span>
             <input
               type="file"
@@ -283,10 +314,18 @@ export default function Setup() {
               className="hidden"
             />
           </label>
+
           {hasResume && (
-            <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-emerald-700">
-              <Badge tone="green">Resume received</Badge>
-            </p>
+            <div className="mt-3">
+              {profile ? (
+                <ResumeProfilePreview profile={profile} />
+              ) : (
+                <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-sm text-slate-600">
+                  <Spinner className="size-4 text-indigo-500" />
+                  Reading your resume… we'll show you what we found here in a moment.
+                </div>
+              )}
+            </div>
           )}
         </Step>
 
