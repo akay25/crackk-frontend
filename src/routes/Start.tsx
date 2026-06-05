@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createSession, type CreateSessionResponse } from "../lib/api";
-import { Alert, Button, Card, Spinner } from "../components/ui";
+import { Alert, Button, Card, Footer, Spinner } from "../components/ui";
 
 const FEATURES = [
   { title: "Tailored to you", body: "Questions built from your resume and the exact job description." },
@@ -42,8 +42,8 @@ export default function Start() {
   }
 
   return (
-    <div className="min-h-screen">
-      <div className="mx-auto flex max-w-2xl flex-col items-center px-5 py-16 text-center sm:py-24">
+    <div className="flex min-h-screen flex-col">
+      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center px-5 py-16 text-center sm:py-24">
         <h1 className="mt-5 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
           Practice the interview,
           <br />
@@ -109,6 +109,7 @@ export default function Start() {
           ))}
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

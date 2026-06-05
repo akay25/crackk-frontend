@@ -1,5 +1,6 @@
 // Small Tailwind UI kit shared across screens. Keeps the routes declarative and
 // the visual language consistent (rounded cards, indigo accent, soft shadows).
+import { useEffect } from "react";
 import type {
   ButtonHTMLAttributes,
   InputHTMLAttributes,
@@ -12,18 +13,58 @@ export function cn(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(" ");
 }
 
+/** Centered modal dialog with a dimmed backdrop. Closes on backdrop click / Esc. */
+export function Modal({
+  open,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 /** App chrome: brand header + centered content column. */
 export function Shell({ children, max = "max-w-2xl" }: { children: ReactNode; max?: string }) {
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-10 border-b border-slate-200/70 bg-white/70 backdrop-blur">
+    <div className="flex h-screen flex-col">
+      <header className="shrink-0 border-b border-slate-200/70 bg-white/70 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center gap-2.5 px-5 py-3.5">
           <Logo />
           <span className="font-semibold tracking-tight text-slate-900">AI Interviewer</span>
         </div>
       </header>
-      <main className={cn("mx-auto px-5 py-10", max)}>{children}</main>
+      <div className="flex flex-1 flex-col overflow-y-auto">
+        <main className={cn("mx-auto w-full flex-1 px-5 py-10", max)}>{children}</main>
+        <Footer />
+      </div>
     </div>
+  );
+}
+
+/** Non-sticky page footer, shown across all screens. */
+export function Footer() {
+  return (
+    <footer className="border-t border-slate-200/70 py-6 text-center text-sm text-slate-500">
+      Made after eating chicken rice
+    </footer>
   );
 }
 
