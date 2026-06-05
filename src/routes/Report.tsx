@@ -1,5 +1,5 @@
 // Report screen: renders the evidence-based report from GET /sessions/:id/report
-// (shape: contracts/schemas/report.schema.json). Overall + per-competency scores,
+// (shape: common/schemas/report.schema.json). Overall + per-competency scores,
 // strengths, areas to improve (area/why/how), and verbatim evidence quotes. The
 // report may not be ready (404) right after a call, so we poll and degrade
 // gracefully if the endpoint is still stubbed. Route is token-guarded.

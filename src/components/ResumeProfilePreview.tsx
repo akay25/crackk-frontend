@@ -1,6 +1,6 @@
 // Shows what the resume_parser extracted from the uploaded resume, so the
 // candidate can confirm it looks right before building the interview. Renders a
-// ParsedProfile (contracts/schemas/parsed_profile.schema.json). On low parse
+// ParsedProfile (common/schemas/parsed_profile.schema.json). On low parse
 // confidence we nudge the candidate to double-check (e.g. scanned PDF).
 import type { ParsedProfile } from "../lib/api";
 import { Alert, Badge } from "./ui";

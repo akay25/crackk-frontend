@@ -1,7 +1,6 @@
 // Setup screen: resume upload, job URL (with paste-JD fallback), and the
-// difficulty / pay / role form. Drives its UI by polling GET /sessions/:id and
-// reading status, has_resume, jd_source, has_blueprint. Authorized by the magic
-// token (route is token-guarded). Builds against contracts-v2.
+// difficulty / pay / role form. Drives its UI from live per-stage status over the
+// WebSocket (see lib/ws.ts). sessionId comes from the URL path (the capability).
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {

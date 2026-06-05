@@ -1,7 +1,7 @@
 // Thin FastAPI client. There is NO token: each request is authorized by the
 // session_id already in the URL path (the unguessable capability). The only thing
 // in localStorage is the anonymous USER id (persistent identity, never in a URL).
-// Endpoints mirror backend/contracts/openapi.yaml.
+// Endpoints mirror the backend FastAPI routes.
 
 const BASE = "/api";
 const USER_KEY = "anon_user_id";
@@ -75,7 +75,7 @@ export async function getSession(id: string): Promise<Session> {
   return r.json();
 }
 
-// ---- Parsed resume profile (shape: contracts/schemas/parsed_profile.schema.json) ----
+// ---- Parsed resume profile (shape: common/schemas/parsed_profile.schema.json) ----
 
 export interface ExperienceItem {
   title: string;
@@ -108,7 +108,7 @@ export interface ParsedProfile {
  * flight (404) or until the endpoint is published — the Setup preview degrades
  * gracefully to a "parsing…" state in that case.
  *
- * Published in contracts-v2 (GET /sessions/{id}/resume -> ParsedProfile); 404
+ * Adds (GET /sessions/{id}/resume -> ParsedProfile); 404
  * while parsing is in flight.
  */
 export async function getResumeProfile(id: string): Promise<ParsedProfile | null> {
@@ -169,7 +169,7 @@ export async function joinCall(id: string): Promise<JoinResponse> {
   return r.json();
 }
 
-// ---- Report (shape mirrors contracts/schemas/report.schema.json) ----
+// ---- Report (shape mirrors common/schemas/report.schema.json) ----
 
 export interface CompetencyScore {
   key: string;
