@@ -3,6 +3,21 @@
 /* LiveKit prebuilt component styles (control bar, audio, etc.). */
 @import "@livekit/components-styles";
 
+/* The LiveKit control bar ships with its own padding + top border, which insets
+   the mic button (and its device dropdown) from the wrapper's left edge so it no
+   longer lines up with the caption box above. Strip that chrome to align flush. */
+.lk-controls-wrap .lk-agent-control-bar,
+.lk-controls-wrap .lk-control-bar {
+  padding: 0;
+  border: none;
+}
+
+/* Match the control buttons' height to the "End call" button (text-sm + py-2.5
+   = 2.5rem) so the two sit level in the row. */
+.lk-controls-wrap .lk-button {
+  height: 2.5rem;
+}
+
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
     Roboto, Helvetica, Arial, sans-serif;
