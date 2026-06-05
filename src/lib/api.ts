@@ -1,53 +1,29 @@
-// Thin FastAPI client. The anonymous magic_token (also the user id) is read from
-// the URL (?token=) or localStorage and sent as a Bearer header on every call.
-// Endpoints mirror backend/contracts/openapi.yaml (contracts-v2).
+// Thin FastAPI client. There is NO token: each request is authorized by the
+// session_id already in the URL path (the unguessable capability). The only thing
+// in localStorage is the anonymous USER id (persistent identity, never in a URL).
+// Endpoints mirror backend/contracts/openapi.yaml.
 
 const BASE = "/api";
-const TOKEN_KEY = "magic_token";
-const SESSION_KEY = "session_id";
+const USER_KEY = "anon_user_id";
 
-export function getToken(): string | null {
-  const fromUrl = new URLSearchParams(window.location.search).get("token");
-  if (fromUrl) localStorage.setItem(TOKEN_KEY, fromUrl);
-  return localStorage.getItem(TOKEN_KEY);
-}
-
-export function setToken(token: string) {
-  localStorage.setItem(TOKEN_KEY, token);
-}
-
-// The current session id is remembered so later screens (and a fresh tab opened
-// from the magic link) know which session is in flight.
-export function getSessionId(): string | null {
-  return localStorage.getItem(SESSION_KEY);
-}
-
-export function setSessionId(id: string) {
-  localStorage.setItem(SESSION_KEY, id);
-}
-
-/** Raised when a token-guarded call is rejected for missing/invalid auth. */
-export class UnauthorizedError extends Error {
-  constructor() {
-    super("unauthorized");
-    this.name = "UnauthorizedError";
+// The anonymous user id — generated once on first load, kept in localStorage.
+// Groups a browser's sessions; sent only when creating a session.
+export function getOrCreateUserId(): string {
+  let id = localStorage.getItem(USER_KEY);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(USER_KEY, id);
   }
+  return id;
 }
 
 async function req(path: string, init: RequestInit = {}): Promise<Response> {
-  const token = getToken();
-  const headers: Record<string, string> = {
-    ...(init.headers as Record<string, string>),
-  };
-  if (token) headers["Authorization"] = `Bearer ${token}`;
-  const r = await fetch(`${BASE}${path}`, { ...init, headers });
-  if (r.status === 401 || r.status === 403) throw new UnauthorizedError();
-  return r;
+  return fetch(`${BASE}${path}`, init);
 }
 
 export interface CreateSessionResponse {
   session_id: string;
-  magic_token: string;
+  user_id: string;
   setup_url: string;
 }
 
@@ -84,12 +60,13 @@ export interface ConfigInput {
 }
 
 export async function createSession(): Promise<CreateSessionResponse> {
-  const r = await req("/sessions", { method: "POST" });
+  const r = await req("/sessions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: getOrCreateUserId() }),
+  });
   if (!r.ok) throw new Error(`createSession failed: ${r.status}`);
-  const data: CreateSessionResponse = await r.json();
-  setToken(data.magic_token);
-  setSessionId(data.session_id);
-  return data;
+  return r.json();
 }
 
 export async function getSession(id: string): Promise<Session> {

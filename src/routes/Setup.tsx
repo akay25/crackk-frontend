@@ -3,12 +3,11 @@
 // reading status, has_resume, jd_source, has_blueprint. Authorized by the magic
 // token (route is token-guarded). Builds against contracts-v2.
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   buildBlueprint,
   getResumeProfile,
   getSession,
-  getSessionId,
   setConfig,
   setJob,
   uploadResume,
@@ -82,7 +81,7 @@ function Step({
 
 export default function Setup() {
   const navigate = useNavigate();
-  const sessionId = getSessionId();
+  const { sessionId } = useParams();
 
   const [session, setSession] = useState<Session | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -116,7 +115,7 @@ export default function Setup() {
   }, [sessionId]);
 
   // Live status over WebSocket — no polling.
-  const statuses = useSessionStatus(sessionId);
+  const statuses = useSessionStatus(sessionId ?? null);
 
   // Initial load of the structured session fields.
   useEffect(() => {
@@ -469,7 +468,7 @@ export default function Setup() {
             <p className="font-semibold text-slate-900">Your interview is ready 🎉</p>
             <p className="text-sm text-slate-600">Join when you're set up with a quiet space and a mic.</p>
           </div>
-          <Button onClick={() => navigate(`/interview/${sessionId}`)} className="px-5 py-3">
+          <Button onClick={() => navigate(`/${sessionId}/interview`)} className="px-5 py-3">
             Join the interview →
           </Button>
         </Card>

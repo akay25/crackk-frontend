@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createSession, type CreateSessionResponse } from "../lib/api";
-import { Alert, Badge, Button, Card, Logo, Spinner } from "../components/ui";
+import { Alert, Button, Card, Spinner } from "../components/ui";
 
 const FEATURES = [
   { title: "Tailored to you", body: "Questions built from your resume and the exact job description." },
@@ -89,7 +89,7 @@ export default function Start() {
               </Button>
             </div>
             <Button
-              onClick={() => navigate("/setup")}
+              onClick={() => navigate(`/${res.session_id}/setup`)}
               className="mt-4 w-full py-3 text-base"
             >
               Continue to setup →

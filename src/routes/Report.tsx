@@ -73,16 +73,16 @@ function Competency({ c }: { c: CompetencyScore }) {
 }
 
 export default function Report() {
-  const { id } = useParams();
+  const { sessionId } = useParams();
 
   const [report, setReport] = useState<ReportData | null>(null);
   const [pending, setPending] = useState(true); // report not produced yet (404)
   const [err, setErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!id) return;
+    if (!sessionId) return;
     try {
-      const r = await getReport(id);
+      const r = await getReport(sessionId);
       if (r) {
         setReport(r);
         setPending(false);
@@ -94,10 +94,10 @@ export default function Report() {
       // e.g. the endpoint is still stubbed (501) before report_gen merges.
       setErr(String(e));
     }
-  }, [id]);
+  }, [sessionId]);
 
   // Live status over WebSocket — no polling.
-  const statuses = useSessionStatus(id ?? null);
+  const statuses = useSessionStatus(sessionId ?? null);
 
   // Try once on arrival (the report may already be done), then fetch exactly when
   // the report stage flips ready.
@@ -113,7 +113,7 @@ export default function Report() {
     return (
       <Shell max="max-w-3xl">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Interview Report</h1>
-        <p className="mt-1 font-mono text-xs text-slate-400">{id}</p>
+        <p className="mt-1 font-mono text-xs text-slate-400">{sessionId}</p>
 
         {/* Overall */}
         <Card className="mt-5 flex items-center gap-6 bg-gradient-to-br from-white to-indigo-50/40">
@@ -183,7 +183,7 @@ export default function Report() {
   return (
     <Shell>
       <h1 className="text-2xl font-bold tracking-tight text-slate-900">Interview Report</h1>
-      <p className="mt-1 font-mono text-xs text-slate-400">{id}</p>
+      <p className="mt-1 font-mono text-xs text-slate-400">{sessionId}</p>
       <Card className="mt-5 text-center">
         {err ? (
           <>

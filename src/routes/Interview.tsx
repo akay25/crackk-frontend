@@ -16,7 +16,7 @@ import { joinCall, type JoinResponse } from "../lib/api";
 import { Alert, Badge, Button, Card, Shell, Spinner } from "../components/ui";
 
 export default function Interview() {
-  const { id } = useParams();
+  const { sessionId } = useParams();
   const navigate = useNavigate();
 
   const [conn, setConn] = useState<JoinResponse | null>(null);
@@ -24,16 +24,16 @@ export default function Interview() {
   const [err, setErr] = useState<string | null>(null);
 
   const join = useCallback(async () => {
-    if (!id) return;
+    if (!sessionId) return;
     setErr(null);
     setPhase("connecting");
     try {
-      setConn(await joinCall(id));
+      setConn(await joinCall(sessionId));
     } catch (e) {
       setErr(String(e));
       setPhase("idle");
     }
-  }, [id]);
+  }, [sessionId]);
 
   if (!conn) {
     return (
@@ -84,7 +84,7 @@ export default function Interview() {
           </div>
           <h1 className="mt-5 text-2xl font-bold tracking-tight text-slate-900">Interview complete</h1>
           <p className="mt-2 text-slate-600">Nice work. Your report is being generated.</p>
-          <Button onClick={() => navigate(`/report/${id}`)} className="mt-6 px-6 py-3 text-base">
+          <Button onClick={() => navigate(`/${sessionId}/report`)} className="mt-6 px-6 py-3 text-base">
             View my report →
           </Button>
         </Card>
@@ -105,7 +105,7 @@ export default function Interview() {
       onError={(e) => setErr(String(e))}
     >
       <Shell>
-        <CallStage sessionId={id} err={err} />
+        <CallStage sessionId={sessionId} err={err} />
       </Shell>
       {/* Plays the interviewer's audio into the page. */}
       <RoomAudioRenderer />

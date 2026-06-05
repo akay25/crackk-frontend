@@ -7,14 +7,18 @@ import Start from "./routes/Start";
 import Setup from "./routes/Setup";
 import Interview from "./routes/Interview";
 import Report from "./routes/Report";
-import RequireToken from "./lib/guard";
+import { getOrCreateUserId } from "./lib/api";
 
-// Every route except "/" is guarded by the magic token (redirects to "/").
+// Generate + persist the anonymous user id on first load.
+getOrCreateUserId();
+
+// No auth guard — the session_id in the path is the capability; the pages handle
+// a 404 if it isn't a real session.
 const router = createBrowserRouter([
   { path: "/", element: <Start /> },
-  { path: "/setup", element: <RequireToken><Setup /></RequireToken> },
-  { path: "/interview/:id", element: <RequireToken><Interview /></RequireToken> },
-  { path: "/report/:id", element: <RequireToken><Report /></RequireToken> },
+  { path: "/:sessionId/setup", element: <Setup /> },
+  { path: "/:sessionId/interview", element: <Interview /> },
+  { path: "/:sessionId/report", element: <Report /> },
 ]);
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

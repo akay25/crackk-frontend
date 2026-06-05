@@ -1,9 +1,9 @@
 // Live session status over WebSocket — replaces polling. Subscribes to
-// `/ws/sessions/:id?token=…`; receives a snapshot on connect then per-stage
-// deltas. Reconnects on drop. The UI reacts to a stage flipping `ready`/`failed`
-// instead of polling + eating 404s.
+// `/ws/sessions/:id` (no token — the session_id is the capability); receives a
+// snapshot on connect then per-stage deltas. Reconnects on drop. The UI reacts to
+// a stage flipping `ready`/`failed` instead of polling + eating 404s.
 import { useEffect, useState } from "react";
-import { getToken, type StageStatus } from "./api";
+import { type StageStatus } from "./api";
 
 export interface SessionStatuses {
   status: string;
@@ -17,8 +17,7 @@ export function useSessionStatus(sessionId: string | null): SessionStatuses | nu
   const [statuses, setStatuses] = useState<SessionStatuses | null>(null);
 
   useEffect(() => {
-    const token = getToken();
-    if (!sessionId || !token) return;
+    if (!sessionId) return;
 
     let ws: WebSocket | null = null;
     let closed = false;
@@ -26,9 +25,8 @@ export function useSessionStatus(sessionId: string | null): SessionStatuses | nu
 
     const connect = () => {
       const proto = location.protocol === "https:" ? "wss" : "ws";
-      ws = new WebSocket(
-        `${proto}://${location.host}/ws/sessions/${sessionId}?token=${encodeURIComponent(token)}`,
-      );
+      // No token — the session_id is the capability.
+      ws = new WebSocket(`${proto}://${location.host}/ws/sessions/${sessionId}`);
       ws.onmessage = (e) => {
         const m = JSON.parse(e.data);
         if (m.type === "snapshot") {
