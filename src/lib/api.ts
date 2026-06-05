@@ -31,7 +31,10 @@ export type StageStatus = "pending" | "running" | "ready" | "failed";
 
 export interface Session {
   id: string;
-  status: "draft" | "ready" | "in_call" | "completed" | "failed";
+  // Lifecycle: draft → ready → in_call → call_ended (call over, report building)
+  // → completed. `failed` is a terminal pipeline failure. Mirrors the backend
+  // SessionStatus enum (common/models/enums.py).
+  status: "draft" | "ready" | "in_call" | "call_ended" | "completed" | "failed";
   job_url: string | null;
   jd_source: "scraped" | "pasted" | null;
   difficulty: "junior" | "mid" | "senior" | "staff" | null;

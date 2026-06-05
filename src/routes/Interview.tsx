@@ -13,7 +13,7 @@ import {
   useVoiceAssistant,
 } from "@livekit/components-react";
 import { joinCall, type JoinResponse } from "../lib/api";
-import { Alert, Badge, Button, Card, Shell, Spinner } from "../components/ui";
+import { Alert, Badge, Button, Card, Shell, Spinner, cn } from "../components/ui";
 
 export default function Interview() {
   const { sessionId } = useParams();
@@ -123,9 +123,11 @@ const STATE_LABEL: Record<string, { label: string; tone: "slate" | "amber" | "gr
 
 function CallStage({ sessionId, err }: { sessionId?: string; err: string | null }) {
   const room = useRoomContext();
-  const { state } = useVoiceAssistant();
+  const { state, agent } = useVoiceAssistant();
   const { localParticipant, isMicrophoneEnabled } = useLocalParticipant();
   const meta = STATE_LABEL[state] ?? { label: state, tone: "slate" as const };
+  // The agent participant is undefined until the AI interviewer actually joins.
+  const agentJoined = !!agent;
   // Captions are opt-in; off by default. The window stays mounted (just hidden) so
   // the transcript keeps accumulating and is all there when toggled back on.
   const [showCaptions, setShowCaptions] = useState(false);
@@ -159,10 +161,23 @@ function CallStage({ sessionId, err }: { sessionId?: string; err: string | null 
       </div>
 
       {!showCaptions && (
-        <div className="mt-5 flex justify-center">
-          <div className="grid size-44 place-items-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-sm shadow-indigo-500/30">
+        <div className="mt-5 flex flex-col items-center gap-3">
+          <div
+            className={cn(
+              "grid size-44 place-items-center rounded-2xl shadow-sm transition",
+              agentJoined
+                ? "bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-indigo-500/30"
+                : "bg-slate-200 text-slate-400",
+            )}
+          >
             <span className="text-5xl font-bold tracking-tight">AI</span>
           </div>
+          {!agentJoined && (
+            <p className="flex items-center gap-2 text-sm text-slate-500">
+              <Spinner className="size-4 text-slate-400" />
+              Waiting for the interviewer to join…
+            </p>
+          )}
         </div>
       )}
 
@@ -203,6 +218,19 @@ function Captions({ localIdentity }: { localIdentity: string }) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [transcriptions]);
 
+  // Show the interviewer's words verbatim; collapse the candidate's turns into a
+  // single "speaking" placeholder (we don't surface what they say).
+  const items: { isYou: boolean; text: string }[] = [];
+  for (const seg of transcriptions) {
+    const isYou = seg.participantInfo.identity === localIdentity;
+    if (isYou) {
+      if (items.length && items[items.length - 1].isYou) continue;
+      items.push({ isYou: true, text: "" });
+    } else {
+      items.push({ isYou: false, text: seg.text });
+    }
+  }
+
   return (
     <Card className="mt-5 p-0">
       <div className="flex items-center gap-2 border-b border-slate-200 px-5 py-3">
@@ -213,34 +241,28 @@ function Captions({ localIdentity }: { localIdentity: string }) {
         <span className="text-sm font-semibold text-slate-700">Live captions</span>
       </div>
       <div ref={scrollRef} className="h-[22rem] space-y-3 overflow-y-auto px-5 py-4">
-        {transcriptions.length === 0 ? (
-          <p className="text-sm text-slate-400">Captions will appear here as you talk…</p>
+        {items.length === 0 ? (
+          <p className="text-sm text-slate-400">The interviewer's captions will appear here…</p>
         ) : (
-          transcriptions.map((seg, i) => {
-            const isYou = seg.participantInfo.identity === localIdentity;
-            return (
-              <div key={i} className={"flex " + (isYou ? "justify-end" : "justify-start")}>
-                <div
-                  className={
-                    "max-w-[80%] rounded-2xl px-3.5 py-2 text-sm " +
-                    (isYou
-                      ? "rounded-br-sm bg-indigo-600 text-white"
-                      : "rounded-bl-sm bg-slate-100 text-slate-800")
-                  }
-                >
-                  <span
-                    className={
-                      "mb-0.5 block text-[11px] font-semibold " +
-                      (isYou ? "text-indigo-200" : "text-slate-500")
-                    }
-                  >
-                    {isYou ? "You" : "Interviewer"}
-                  </span>
-                  {seg.text}
+          items.map((item, i) =>
+            item.isYou ? (
+              // We don't show what the candidate says — just a "speaking" indicator.
+              <div key={i} className="flex justify-end">
+                <div className="flex items-center gap-1 rounded-2xl rounded-br-sm bg-slate-100 px-3.5 py-3">
+                  <span className="size-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.3s]" />
+                  <span className="size-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.15s]" />
+                  <span className="size-1.5 animate-bounce rounded-full bg-slate-400" />
                 </div>
               </div>
-            );
-          })
+            ) : (
+              <div key={i} className="flex justify-start">
+                <div className="max-w-[80%] rounded-2xl rounded-bl-sm bg-slate-100 px-3.5 py-2 text-sm text-slate-800">
+                  <span className="mb-0.5 block text-[11px] font-semibold text-slate-500">Interviewer</span>
+                  {item.text}
+                </div>
+              </div>
+            ),
+          )
         )}
       </div>
     </Card>

@@ -40,6 +40,7 @@ const STATUS_TONE: Record<Session["status"], "slate" | "green" | "amber" | "rose
   draft: "slate",
   ready: "indigo",
   in_call: "amber",
+  call_ended: "amber", // call over, report building
   completed: "green",
   failed: "rose",
 };
