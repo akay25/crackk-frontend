@@ -229,6 +229,9 @@ export default function Setup() {
   }
 
   const hasResume = session?.has_resume ?? false;
+  // Step 1 isn't "done" until the resume is actually parsed (stage=ready), not just
+  // uploaded — so Next (and the stepper jump) stay disabled while parsing runs.
+  const resumeReady = statuses?.resume === "ready" || session?.resume_status === "ready";
   const hasJd = !!session?.jd_source || statuses?.jd === "ready";
   const hasConfig = !!session?.difficulty; // config sets difficulty -> status=ready
   const hasBlueprint = (session?.has_blueprint ?? false) || statuses?.blueprint === "ready";
@@ -238,7 +241,7 @@ export default function Setup() {
   // reflects that config was saved).
   const canBuild = ready && hasResume && hasJd;
 
-  const doneFlags = [hasResume, hasJd, hasConfig];
+  const doneFlags = [resumeReady, hasJd, hasConfig];
   const completed = doneFlags.filter(Boolean).length;
 
   // You can revisit any completed step and reach the first unfinished one, but

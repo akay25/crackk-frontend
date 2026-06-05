@@ -98,6 +98,7 @@ export default function Report() {
 
   // Live status over WebSocket — no polling.
   const statuses = useSessionStatus(sessionId ?? null);
+  const failed = statuses?.report === "failed";
 
   // Try once on arrival (the report may already be done), then fetch exactly when
   // the report stage flips ready.
@@ -108,7 +109,7 @@ export default function Report() {
     if (statuses?.report === "ready") load();
   }, [statuses?.report, load]);
 
-  if (report) {
+  if (report && !failed) {
     const t = tone(report.overall_score);
     return (
       <Shell max="max-w-3xl">
@@ -185,7 +186,13 @@ export default function Report() {
       <h1 className="text-2xl font-bold tracking-tight text-slate-900">Interview Report</h1>
       <p className="mt-1 font-mono text-xs text-slate-400">{sessionId}</p>
       <Card className="mt-5 text-center">
-        {err ? (
+        {failed ? (
+          <div className="text-left">
+            <Alert tone="rose">
+              Report generation failed. We couldn't produce a report for this interview.
+            </Alert>
+          </div>
+        ) : err ? (
           <>
             <div className="mb-4 text-left">
               <Alert tone="amber">
@@ -204,9 +211,11 @@ export default function Report() {
             </div>
           )
         )}
-        <Button variant="secondary" onClick={load} className="mt-2">
-          Check now
-        </Button>
+        {!failed && (
+          <Button variant="secondary" onClick={load} className="mt-2">
+            Check now
+          </Button>
+        )}
       </Card>
     </Shell>
   );
