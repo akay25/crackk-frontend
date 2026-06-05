@@ -1,53 +1,57 @@
-# `frontend/` — React + Vite SPA
+# Frontend — AI Interviewer (React + Vite SPA)
 
-> **Status (current):** Built + merged on `main`. Routes Start/Setup/Interview/Report
-> implemented; **Tailwind v4** via `@tailwindcss/vite` (no config files); token-guarded routes
-> (`lib/guard.tsx`); shared component kit (`components/ui.tsx`); typed client (`lib/api.ts`)
-> covering every endpoint incl. the resume-profile preview (`GET /sessions/:id/resume`). The
-> Interview screen uses `@livekit/components-react` (live captions + voice-assistant state).
-> `npm run build` clean.
+A thin single-page app. A job-seeker uploads a resume + the job posting and picks
+difficulty / pay / role; the backend generates a **tailored interview**, an **AI
+voice agent conducts a live browser call** (LiveKit / WebRTC), and the app shows a
+**detailed, evidence-based report**. No SSR — the only reason JS runs here is the
+in-browser WebRTC call. The static build can be served by any CDN or by FastAPI.
 
-A **thin** client. Three screens, client-side routing, no SSR. The only reason JS exists here is
-that the WebRTC client + LiveKit room connection must run in the browser. The static build can be
-served by a CDN or by FastAPI.
+## Stack
+React 18 + **Vite** + **React Router** + **Tailwind v4** (`@tailwindcss/vite`, no config files)
++ **`@livekit/components-react`** for the call screen.
 
-See the [root plan](../plan.md) for the full architecture.
+## Routes (`session_id` is in the path)
+- `/` — **Start**: mints a session, shows the private return link.
+- `/:sessionId/setup` — upload resume, job URL / paste-JD fallback, difficulty/pay/role, build interview.
+- `/:sessionId/interview` — LiveKit call screen (mic, live captions, end call).
+- `/:sessionId/report` — overall + per-competency scores, strengths, improvements, verbatim evidence.
 
-## Why React + Vite (not Next.js)
-This is a logged-in app with no SEO/marketing pages, so server rendering would be unused weight.
-Plain SPA + **React Router** for `/setup`, `/interview/:id`, `/report/:id`.
+No route guard: the `session_id` in the path is the capability; pages handle a 404 if it isn't real.
+
+## Identity & auth (no token)
+- On first load, a random **`user_id`** (UUID) is generated and stored in **localStorage** — the
+  persistent **anonymous identity**, which **never appears in a URL**. See `getOrCreateUserId()` in `lib/api.ts`.
+- **Start a new interview** → `POST /sessions {user_id}` → returns a `session_id`. The
+  **`session_id` is the capability**: it lives in the URL path and grants access to that one
+  session (the API returns 404 if it's unknown). **No token, no `Authorization` header.**
+- The session URL (`/:sessionId/…`) is how a candidate returns to — or shares — one interview.
+
+## Data flow
+- **`lib/api.ts`** — typed REST client. Calls hit `/api/*` (Vite proxies → `:8000`). The
+  `session_id` in the path is the auth; no auth header is sent.
+- **`lib/ws.ts`** — `useSessionStatus(sessionId)` opens **`WS /ws/sessions/:id`**, receives a
+  snapshot then live **per-stage status** deltas, and reconnects on drop. **This replaces polling.**
+  Per-stage statuses: `resume / jd / blueprint / report ∈ pending|running|ready|failed`.
+  - **Setup** fetches the parsed-resume preview when `resume_status` flips `ready`; surfaces the
+    paste-JD fallback when `jd_status` is `failed`.
+  - **Report** fetches the report when `report_status` flips `ready`. No 404-polling anywhere.
+- **`lib/livekit.ts`** — joins the LiveKit room with the token from `POST /sessions/:id/join`.
 
 ## Layout
 ```
 frontend/
-├── index.html
-├── vite.config.ts
+├── vite.config.ts        # dev :5173; proxies /api (REST) + /ws (WebSocket) → :8000
 └── src/
-    ├── main.tsx          # React Router setup; token-guarded routes
-    ├── routes/
-    │   ├── Setup.tsx     # /setup        upload resume + JD link + difficulty/pay
-    │   ├── Interview.tsx # /interview/:id  LiveKit call screen
-    │   └── Report.tsx    # /report/:id     report view
-    ├── lib/api.ts        # FastAPI client (carries magic_token on every call)
-    ├── lib/livekit.ts    # room connect helpers (@livekit/components-react)
-    └── __tests__/
+    ├── main.tsx          # Router setup; generates the user_id on load
+    ├── routes/{Start,Setup,Interview,Report}.tsx
+    ├── components/{ui.tsx, ResumeProfilePreview.tsx}
+    └── lib/{api.ts, ws.ts, livekit.ts}
 ```
 
-## Screens
-- **Setup** — drag-drop resume upload; job-URL field; on scrape failure show a **paste-JD** textarea
-  fallback; difficulty / target pay / role selectors; "Start interview" button. Polls session status.
-- **Interview** — connects to the LiveKit room with the token from `POST /sessions/{id}/join`; mic
-  permission, live captions/transcript, agent audio, end-call control.
-- **Report** — renders overall + per-competency scores, strengths, areas to improve, evidence quotes,
-  recommendations.
-
-## Auth
-- The **magic_token** (from the link the API shows on screen) is the only credential. `lib/api.ts`
-  attaches it to every request; routes are guarded by presence/validity of the token. No login UI.
+## Run
+- Bring up the backend: API on `:8000` (uvicorn) + Celery worker + (optional) agent + infra.
+- `npm install` then `npm run dev` → http://localhost:5173. `npm run build` = clean static build.
 
 ## Deps
-`react`, `react-dom`, `react-router-dom`, `@livekit/components-react`, `livekit-client`, `vite`.
-
-## Verification
-- Full UI loop on a sample candidate: setup → join call → view report.
-- Scrape-failure path surfaces the paste-JD textarea; missing token blocks the guarded routes.
+`react`, `react-dom`, `react-router-dom`, `@livekit/components-react`, `@livekit/components-styles`,
+`livekit-client`; dev: `vite`, `@vitejs/plugin-react`, `tailwindcss`, `@tailwindcss/vite`, `typescript`.
