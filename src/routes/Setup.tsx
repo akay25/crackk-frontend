@@ -158,6 +158,11 @@ export default function Setup() {
   const [awaitingBuild, setAwaitingBuild] = useState(false);
   // Popup shown when the worker reports resume parsing failed (over the WS).
   const [showResumeError, setShowResumeError] = useState(false);
+  // True from the moment a replacement resume is uploaded until the worker actually
+  // picks it up (status leaves "ready"). Without this, the previous parse's "ready"
+  // status lingers — re-enabling Next and re-showing the old parsed profile — until
+  // the WS catches up.
+  const [reparsing, setReparsing] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!sessionId) return;
@@ -189,7 +194,9 @@ export default function Setup() {
   // Fetch the parsed-resume preview exactly once, when the resume stage is ready
   // (no more 404-polling — the status flag tells us when it's available).
   useEffect(() => {
-    if (!sessionId || statuses?.resume !== "ready" || profile) return;
+    // Skip while reparsing — the "ready" status still refers to the previous resume,
+    // so fetching now would re-show the stale profile.
+    if (!sessionId || reparsing || statuses?.resume !== "ready" || profile) return;
     let active = true;
     getResumeProfile(sessionId)
       .then((p) => {
@@ -199,13 +206,21 @@ export default function Setup() {
     return () => {
       active = false;
     };
-  }, [sessionId, statuses?.resume, profile]);
+  }, [sessionId, reparsing, statuses?.resume, profile]);
 
   // The worker pushes resume:"failed" over the WS if parsing blew up — surface it
   // as a popup so the candidate knows to re-upload (effect fires on the status flip).
   useEffect(() => {
     if (statuses?.resume === "failed") setShowResumeError(true);
   }, [statuses?.resume]);
+
+  // Once the worker actually starts on the replacement resume, the live status
+  // leaves "ready" (-> running/pending/failed) and can drive the UI again, so we
+  // drop the local hold. From here the normal running->ready flow refetches the
+  // new profile and re-enables Next.
+  useEffect(() => {
+    if (reparsing && statuses?.resume && statuses.resume !== "ready") setReparsing(false);
+  }, [reparsing, statuses?.resume]);
 
   // Once the blueprint is ready, resolve the build button's loading state. The
   // "Join interview" modal itself is driven directly by hasBlueprint (below).
@@ -231,7 +246,15 @@ export default function Setup() {
   const hasResume = session?.has_resume ?? false;
   // Step 1 isn't "done" until the resume is actually parsed (stage=ready), not just
   // uploaded — so Next (and the stepper jump) stay disabled while parsing runs.
-  const resumeReady = statuses?.resume === "ready" || session?.resume_status === "ready";
+  const resumeReady =
+    !reparsing && (statuses?.resume === "ready" || session?.resume_status === "ready");
+  // While a resume is parsing (uploaded, not yet ready, not failed) we block picking
+  // another one — a failed parse still allows re-upload (handled by the modal below).
+  // `reparsing` covers the gap right after a replacement upload, before the live
+  // status has caught up.
+  const resumeProcessing =
+    reparsing ||
+    (hasResume && !resumeReady && statuses?.resume !== "failed" && session?.resume_status !== "failed");
   const hasJd = !!session?.jd_source || statuses?.jd === "ready";
   const hasConfig = !!session?.difficulty; // config sets difficulty -> status=ready
   const hasBlueprint = (session?.has_blueprint ?? false) || statuses?.blueprint === "ready";
@@ -259,7 +282,7 @@ export default function Setup() {
   function onPickResume(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = ""; // allow re-picking the same file later
-    if (!file) return;
+    if (!file || resumeProcessing) return; // don't swap the resume mid-parse
     setErr(null);
     setProfile(null); // a new pick invalidates the previous parse preview
     setPreviewValid(true); // re-validated by the preview below
@@ -277,6 +300,8 @@ export default function Setup() {
     try {
       await uploadResume(sessionId, pendingResume);
       setPendingResume(null);
+      setProfile(null); // drop the previous parse — a new one is on the way
+      setReparsing(true); // hold "processing" until the worker re-runs (status != ready)
       await refresh();
     } catch (e) {
       setErr(String(e));
@@ -387,23 +412,36 @@ export default function Setup() {
           <div>
             <h2 className="text-base font-semibold text-slate-900">Upload your resume</h2>
             <div className="mt-4">
-              <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50/50 px-4 py-6 text-center transition hover:border-indigo-400 hover:bg-indigo-50/40">
-                <svg viewBox="0 0 24 24" fill="none" className="size-7 text-slate-400" stroke="currentColor" strokeWidth={1.8}>
-                  <path d="M12 16V4m0 0 4 4m-4-4-4 4" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" strokeLinecap="round" />
-                </svg>
+              <label
+                className={cn(
+                  "flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-6 text-center transition",
+                  resumeProcessing
+                    ? "cursor-not-allowed border-slate-200 bg-slate-100/60 opacity-70"
+                    : "cursor-pointer border-slate-300 bg-slate-50/50 hover:border-indigo-400 hover:bg-indigo-50/40",
+                )}
+              >
+                {resumeProcessing ? (
+                  <Spinner className="size-7 text-indigo-500" />
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="none" className="size-7 text-slate-400" stroke="currentColor" strokeWidth={1.8}>
+                    <path d="M12 16V4m0 0 4 4m-4-4-4 4" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" strokeLinecap="round" />
+                  </svg>
+                )}
                 <span className="mt-2 text-sm font-medium text-slate-700">
-                  {pendingResume
-                    ? "Click to choose a different file"
-                    : hasResume
-                      ? "Click to replace your resume"
-                      : "Click to choose a PDF or DOCX"}
+                  {resumeProcessing
+                    ? "Processing your resume… please wait"
+                    : pendingResume
+                      ? "Click to choose a different file"
+                      : hasResume
+                        ? "Click to replace your resume"
+                        : "Click to choose a PDF or DOCX"}
                 </span>
                 <input
                   type="file"
                   accept=".pdf,.doc,.docx"
                   onChange={onPickResume}
-                  disabled={resumeBusy}
+                  disabled={resumeBusy || resumeProcessing}
                   className="hidden"
                 />
               </label>
