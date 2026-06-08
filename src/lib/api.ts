@@ -37,6 +37,9 @@ export interface Session {
   status: "draft" | "ready" | "in_call" | "call_ended" | "completed" | "failed";
   job_url: string | null;
   jd_source: "scraped" | "pasted" | null;
+  jd_text: string | null;
+  // null = not checked yet, false = rejected as non-technical, true = accepted.
+  jd_is_technical: boolean | null;
   difficulty: "junior" | "mid" | "senior" | "staff" | null;
   target_pay: string | null;
   role_title: string | null;
