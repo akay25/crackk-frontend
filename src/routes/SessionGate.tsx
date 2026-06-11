@@ -56,20 +56,29 @@ export default function SessionGate({ route, children }: { route: RouteKey; chil
   const { sessionId } = useParams();
 
   // Live status is authoritative. Seed once from REST so a slow WS connect doesn't
-  // hang the gate on a blank loading screen.
+  // hang the gate on a blank loading screen — and so a non-existent session 404s
+  // here (the surest not-found signal) even if the WS close code doesn't surface.
   const live = useSessionStatus(sessionId ?? null);
   const [seed, setSeed] = useState<string | null>(null);
+  const [seedNotFound, setSeedNotFound] = useState(false);
   useEffect(() => {
     if (!sessionId) return;
+    let active = true;
     getSession(sessionId)
-      .then((s) => setSeed(s.status))
-      .catch(() => {});
+      .then((s) => active && setSeed(s.status))
+      .catch((e) => {
+        if (active && String(e).includes("404")) setSeedNotFound(true);
+      });
+    return () => {
+      active = false;
+    };
   }, [sessionId]);
 
   const status = live.status ?? seed;
 
-  // Unknown session (WS closed 4404) — same page as any other unmatched route.
-  if (!sessionId || live.notFound) return <NotFound />;
+  // Unknown session (WS closed 4404, or the REST seed 404'd) — same page as any
+  // other unmatched route.
+  if (!sessionId || live.notFound || seedNotFound) return <NotFound />;
   if (!status) return <Loading />;
 
   const belongs = gateFor(status);
