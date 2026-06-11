@@ -1,12 +1,13 @@
 // Setup screen: resume upload, job URL (with paste-JD fallback), and the
 // difficulty / pay / role form. Drives its UI from live per-stage status over the
 // WebSocket (see lib/ws.ts). sessionId comes from the URL path (the capability).
-import { Fragment, Suspense, lazy, useCallback, useEffect, useState } from "react";
+import { Fragment, Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   buildBlueprint,
   getResumeProfile,
   getSession,
+  joinCall,
   setConfig,
   setJob,
   uploadResume,
@@ -29,21 +30,22 @@ import {
   cn,
 } from "../components/ui";
 import ResumeProfilePreview from "../components/ResumeProfilePreview";
-import { useSessionStatus } from "../lib/ws";
+import { failedStage, parseStatus, reached, useSessionStatus } from "../lib/ws";
 
 // pdf.js is heavy — only pull it in when a file is actually staged for preview.
 const PdfPreview = lazy(() => import("../components/PdfPreview"));
 
 const DIFFICULTIES: Difficulty[] = ["junior", "mid", "senior", "staff"];
 
-const STATUS_TONE: Record<Session["status"], "slate" | "green" | "amber" | "rose" | "indigo"> = {
-  draft: "slate",
-  ready: "indigo",
-  in_call: "amber",
-  call_ended: "amber", // call over, report building
-  completed: "green",
-  failed: "rose",
-};
+// Tone + label for the small status pill, derived from the combined status string.
+function statusTone(status: string): "slate" | "green" | "amber" | "rose" {
+  const { sub } = parseStatus(status);
+  if (sub === "failed") return "rose";
+  if (status === "completed" || sub === "ready") return "green";
+  if (sub === "running" || sub === "in_call") return "amber";
+  return "slate";
+}
+const statusLabel = (status: string) => status.replace(/_/g, " ").replace(".", " · ");
 
 const STEP_TITLES = ["Resume", "Job description", "Configure & build"];
 
@@ -147,9 +149,16 @@ export default function Setup() {
   const [targetPay, setTargetPay] = useState("");
   const [roleTitle, setRoleTitle] = useState("");
   const [configBusy, setConfigBusy] = useState(false);
+  // Save is enabled only when the form differs from what's saved. Goes false after a
+  // successful save, true on any field edit. Seeded once from the loaded session.
+  const [configDirty, setConfigDirty] = useState(false);
+  const configInited = useRef(false);
 
   // Blueprint
   const [blueprintBusy, setBlueprintBusy] = useState(false);
+  // True while joining — joinCall advances the session to interview.in_call (so the
+  // route guard lets us onto /interview) before we navigate there.
+  const [joining, setJoining] = useState(false);
 
   // Stepper: which step is currently shown (0-based).
   const [step, setStep] = useState(0);
@@ -173,8 +182,10 @@ export default function Setup() {
     }
   }, [sessionId]);
 
-  // Live status over WebSocket — no polling.
-  const statuses = useSessionStatus(sessionId ?? null);
+  // Live combined status over WebSocket — no polling. Fall back to the session's
+  // status (from REST) until the first snapshot arrives.
+  const live = useSessionStatus(sessionId ?? null);
+  const status = live.status ?? session?.status ?? null;
 
   // Initial load of the structured session fields.
   useEffect(() => {
@@ -185,18 +196,18 @@ export default function Setup() {
     refresh();
   }, [sessionId, refresh]);
 
-  // Each time a stage flips (pushed over the WS), re-sync session fields so the
-  // steps light up. No interval — this fires only on actual change.
+  // Each time the live status changes (pushed over the WS), re-sync the richer
+  // session fields so the steps light up. No interval — fires only on actual change.
   useEffect(() => {
-    if (statuses) refresh();
-  }, [statuses, refresh]);
+    if (live.status) refresh();
+  }, [live.status, refresh]);
 
   // Fetch the parsed-resume preview exactly once, when the resume stage is ready
-  // (no more 404-polling — the status flag tells us when it's available).
+  // (no more 404-polling — the status tells us when it's available).
   useEffect(() => {
     // Skip while reparsing — the "ready" status still refers to the previous resume,
     // so fetching now would re-show the stale profile.
-    if (!sessionId || reparsing || statuses?.resume !== "ready" || profile) return;
+    if (!sessionId || reparsing || !reached(status, "resume.ready") || profile) return;
     let active = true;
     getResumeProfile(sessionId)
       .then((p) => {
@@ -206,28 +217,41 @@ export default function Setup() {
     return () => {
       active = false;
     };
-  }, [sessionId, reparsing, statuses?.resume, profile]);
+  }, [sessionId, reparsing, status, profile]);
 
-  // The worker pushes resume:"failed" over the WS if parsing blew up — surface it
-  // as a popup so the candidate knows to re-upload (effect fires on the status flip).
+  // The worker reports "resume.failed" if parsing blew up — surface it as a popup so
+  // the candidate knows to re-upload (effect fires on the status change).
   useEffect(() => {
-    if (statuses?.resume === "failed") setShowResumeError(true);
-  }, [statuses?.resume]);
+    if (failedStage(status) === "resume") setShowResumeError(true);
+  }, [status]);
 
   // Once the worker actually starts on the replacement resume, the live status
-  // leaves "ready" (-> running/pending/failed) and can drive the UI again, so we
-  // drop the local hold. From here the normal running->ready flow refetches the
-  // new profile and re-enables Next.
+  // returns to the resume stage at a non-ready sub (running/pending/failed) and can
+  // drive the UI again, so we drop the local hold. From there the normal
+  // running→ready flow refetches the new profile and re-enables Next.
   useEffect(() => {
-    if (reparsing && statuses?.resume && statuses.resume !== "ready") setReparsing(false);
-  }, [reparsing, statuses?.resume]);
+    const ps = parseStatus(status);
+    if (reparsing && ps.stage === "resume" && ps.sub !== "ready") setReparsing(false);
+  }, [reparsing, status]);
 
   // Once the blueprint is ready, resolve the build button's loading state. The
   // "Join interview" modal itself is driven directly by hasBlueprint (below).
   useEffect(() => {
-    const blueprintReady = (session?.has_blueprint ?? false) || statuses?.blueprint === "ready";
+    const blueprintReady = (session?.has_blueprint ?? false) || reached(status, "blueprint.ready");
     if (blueprintReady && awaitingBuild) setAwaitingBuild(false);
-  }, [session?.has_blueprint, statuses?.blueprint, awaitingBuild]);
+  }, [session?.has_blueprint, status, awaitingBuild]);
+
+  // One-time: seed the config form from the loaded session (so editing one field
+  // doesn't wipe the others) and decide whether Save starts enabled. A session that
+  // has already saved its config (reached difficulty_set) starts disabled until an
+  // edit; a session that hasn't starts enabled so the user can save it.
+  useEffect(() => {
+    if (!session || configInited.current) return;
+    configInited.current = true;
+    setTargetPay(session.target_pay ?? "");
+    setRoleTitle(session.role_title ?? "");
+    setConfigDirty(!reached(session.status, "difficulty_set"));
+  }, [session]);
 
   if (!sessionId) {
     return (
@@ -244,35 +268,32 @@ export default function Setup() {
   }
 
   const hasResume = session?.has_resume ?? false;
-  // Step 1 isn't "done" until the resume is actually parsed (stage=ready), not just
+  const ps = parseStatus(status);
+  // Step 1 isn't "done" until the resume is actually parsed (resume.ready), not just
   // uploaded — so Next (and the stepper jump) stay disabled while parsing runs.
-  const resumeReady =
-    !reparsing && (statuses?.resume === "ready" || session?.resume_status === "ready");
+  const resumeReady = !reparsing && reached(status, "resume.ready");
+  const resumeFailed = failedStage(status) === "resume";
   // While a resume is parsing (uploaded, not yet ready, not failed) we block picking
   // another one — a failed parse still allows re-upload (handled by the modal below).
   // `reparsing` covers the gap right after a replacement upload, before the live
   // status has caught up.
-  const resumeProcessing =
-    reparsing ||
-    (hasResume && !resumeReady && statuses?.resume !== "failed" && session?.resume_status !== "failed");
+  const resumeProcessing = reparsing || (hasResume && !resumeReady && !resumeFailed);
   // A JD only counts as done once it's accepted as technical AND structured
-  // (stage=ready). A non-technical JD fails the jd stage (reason "not_technical")
-  // with jd_is_technical=false, so jd_source being set must NOT unlock the next step.
-  const jdReady = statuses?.jd === "ready" || session?.jd_status === "ready";
-  const jdProcessing = statuses?.jd === "running" || session?.jd_status === "running";
+  // (jd.ready). A non-technical JD fails the jd stage (reason "not_technical") with
+  // jd_is_technical=false, so it must NOT unlock the next step.
+  const jdReady = reached(status, "jd.ready");
+  const jdProcessing = ps.stage === "jd" && (ps.sub === "running" || ps.sub === "pending");
   const jdInvalid = session?.jd_is_technical === false; // rejected: not a technical role
   // Any other JD failure (e.g. scrape/extract error) that isn't the not-technical gate.
-  const jdFailed = !jdInvalid && (statuses?.jd === "failed" || session?.jd_status === "failed");
+  const jdFailed = !jdInvalid && failedStage(status) === "jd";
   const hasJd = jdReady;
-  const hasConfig = !!session?.difficulty; // config sets difficulty -> status=ready
-  const hasBlueprint = (session?.has_blueprint ?? false) || statuses?.blueprint === "ready";
-  const ready = session?.status === "ready" || session?.status === "in_call";
-  // The backend rejects blueprint generation (409) unless a resume AND a JD are
-  // attached, so gate the button on steps 1–3 — not just status=ready (which only
-  // reflects that config was saved).
-  const canBuild = ready && hasResume && hasJd;
+  const configDone = reached(status, "difficulty_set"); // config saved (target_pay/role)
+  const hasBlueprint = (session?.has_blueprint ?? false) || reached(status, "blueprint.ready");
+  // The backend rejects blueprint generation (409) unless a resume AND a JD are ready;
+  // gate the button on all three steps being done.
+  const canBuild = configDone && resumeReady && jdReady;
 
-  const doneFlags = [resumeReady, hasJd, hasConfig];
+  const doneFlags = [resumeReady, hasJd, configDone];
   const completed = doneFlags.filter(Boolean).length;
 
   // You can revisit any completed step and reach the first unfinished one, but
@@ -334,8 +355,8 @@ export default function Setup() {
   //   }
   // }
 
-  async function onPasteJd(e: React.FormEvent) {
-    e.preventDefault();
+  async function onPasteJd(e?: React.FormEvent) {
+    e?.preventDefault();
     if (!jdText.trim() || !sessionId) return;
     setErr(null);
     setJobBusy(true);
@@ -349,8 +370,8 @@ export default function Setup() {
     }
   }
 
-  async function onConfig(e: React.FormEvent) {
-    e.preventDefault();
+  async function onConfig(e?: React.FormEvent) {
+    e?.preventDefault();
     if (!sessionId) return;
     setErr(null);
     setConfigBusy(true);
@@ -359,6 +380,7 @@ export default function Setup() {
     if (roleTitle.trim()) input.role_title = roleTitle.trim();
     try {
       await setConfig(sessionId, input);
+      setConfigDirty(false); // saved — disable until the next edit
       await refresh();
     } catch (e) {
       setErr(String(e));
@@ -367,8 +389,8 @@ export default function Setup() {
     }
   }
 
-  async function onBuild(e: React.FormEvent) {
-    e.preventDefault();
+  async function onBuild(e?: React.FormEvent) {
+    e?.preventDefault();
     if (!sessionId) return;
     setErr(null);
     setBlueprintBusy(true);
@@ -383,6 +405,23 @@ export default function Setup() {
     }
   }
 
+  // Start the interview from the "ready" modal. joinCall flips the session to
+  // interview.in_call (so SessionGate admits us to /interview) and mints the LiveKit
+  // token, which we hand to the Interview page via router state so it connects
+  // straight away (no second "join" step).
+  async function onJoin() {
+    if (!sessionId) return;
+    setErr(null);
+    setJoining(true);
+    try {
+      const conn = await joinCall(sessionId);
+      navigate(`/${sessionId}/interview`, { state: { conn } });
+    } catch (e) {
+      setErr(String(e));
+      setJoining(false);
+    }
+  }
+
   return (
     <Shell>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -393,9 +432,9 @@ export default function Setup() {
           </p>
         </div>
         {session && (
-          <Badge tone={STATUS_TONE[session.status]}>
+          <Badge tone={statusTone(session.status)}>
             <span className="size-1.5 rounded-full bg-current" />
-            {session.status}
+            {statusLabel(session.status)}
           </Badge>
         )}
       </div>
@@ -459,9 +498,17 @@ export default function Setup() {
                 <div className="mt-3 space-y-3">
                   <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm">
                     <span className="min-w-0 truncate font-medium text-slate-700">{pendingResume.name}</span>
-                    <span className="shrink-0 text-xs text-slate-400">
-                      {(pendingResume.size / 1024).toFixed(0)} KB
-                    </span>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <span className="text-xs text-slate-400">{(pendingResume.size / 1024).toFixed(0)} KB</span>
+                      <button
+                        type="button"
+                        onClick={() => setPendingResume(null)}
+                        disabled={resumeBusy}
+                        className="text-sm font-medium text-slate-500 hover:text-slate-700 disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
 
                   {pendingResume.type === "application/pdf" ? (
@@ -480,34 +527,16 @@ export default function Setup() {
                       Preview is available for PDFs only — this file will be uploaded as-is.
                     </p>
                   )}
-
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Button onClick={onUploadResume} disabled={resumeBusy || !previewValid}>
-                      {resumeBusy ? (
-                        <>
-                          <Spinner /> Uploading…
-                        </>
-                      ) : (
-                        "Upload"
-                      )}
-                    </Button>
-                    <button
-                      type="button"
-                      onClick={() => setPendingResume(null)}
-                      disabled={resumeBusy}
-                      className="text-sm font-medium text-slate-500 hover:text-slate-700 disabled:opacity-50"
-                    >
-                      Cancel
-                    </button>
-                  </div>
                 </div>
               )}
 
               {hasResume && !pendingResume && (
                 <div className="mt-3">
-                  {statuses?.resume === "failed" ? (
+                  {resumeFailed ? (
                     <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
-                      We couldn't read that resume. Please upload another file.
+                      {session?.resume_is_technical === false || live.reason === "not_technical"
+                        ? "That doesn't look like a technical resume. Please upload a technical resume to continue."
+                        : "We couldn't read that resume. Please upload another file."}
                     </div>
                   ) : profile ? (
                     <ResumeProfilePreview profile={profile} />
@@ -597,7 +626,7 @@ export default function Setup() {
                   )}
                   */}
 
-                  <form onSubmit={onPasteJd}>
+                  <div>
                     <Label>Paste the job description</Label>
                     <Textarea
                       value={jdText}
@@ -606,10 +635,7 @@ export default function Setup() {
                       placeholder="Paste the full job description here…"
                       disabled={jobBusy}
                     />
-                    <Button type="submit" disabled={jobBusy || !jdText.trim()} className="mt-3">
-                      {jobBusy ? <Spinner /> : "Use this JD"}
-                    </Button>
-                  </form>
+                  </div>
                 </div>
               )}
             </div>
@@ -620,7 +646,7 @@ export default function Setup() {
         {step === 2 && (
           <div>
             <h2 className="text-base font-semibold text-slate-900">Difficulty, pay & role</h2>
-            <form onSubmit={onConfig} className="mt-4 space-y-4">
+            <div className="mt-4 space-y-4">
               <div>
                 <Label>Difficulty</Label>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -628,7 +654,10 @@ export default function Setup() {
                     <button
                       key={d}
                       type="button"
-                      onClick={() => setDifficulty(d)}
+                      onClick={() => {
+                        setDifficulty(d);
+                        setConfigDirty(true);
+                      }}
                       className={
                         "rounded-xl border px-3 py-2 text-sm font-medium capitalize transition " +
                         (difficulty === d
@@ -648,7 +677,10 @@ export default function Setup() {
                     type="text"
                     placeholder="$180k"
                     value={targetPay}
-                    onChange={(e) => setTargetPay(e.target.value)}
+                    onChange={(e) => {
+                      setTargetPay(e.target.value);
+                      setConfigDirty(true);
+                    }}
                   />
                 </div>
                 <div>
@@ -657,14 +689,14 @@ export default function Setup() {
                     type="text"
                     placeholder="Senior Backend Engineer"
                     value={roleTitle}
-                    onChange={(e) => setRoleTitle(e.target.value)}
+                    onChange={(e) => {
+                      setRoleTitle(e.target.value);
+                      setConfigDirty(true);
+                    }}
                   />
                 </div>
               </div>
-              <Button type="submit" disabled={configBusy}>
-                {configBusy ? <Spinner /> : hasConfig ? "Update" : "Save"}
-              </Button>
-            </form>
+            </div>
 
             {/* Build the interview — enabled once resume + JD + config are set. */}
             <div className="mt-6 border-t border-slate-100 pt-5">
@@ -672,13 +704,48 @@ export default function Setup() {
               <p className="mt-1 text-sm text-slate-600">
                 Generates a tailored question blueprint from your resume and the JD.
               </p>
-              <form onSubmit={onBuild} className="mt-3 flex flex-wrap items-center justify-end gap-3">
-                {!canBuild && (
-                  <span className="mr-auto text-sm text-slate-500">
-                    {!hasConfig ? "Save your settings first" : "Finish steps 1–2 first"}
-                  </span>
+              {!canBuild && (
+                <p className="mt-2 text-sm text-slate-500">
+                  {!configDone ? "Save your settings first." : "Finish steps 1–2 first."}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Step navigation + the step's primary action, combined into one row. The
+            action commits the step (upload / save JD / save config / build); Next
+            stays disabled until that accepted event lands (doneFlags[step]). */}
+        <div className="mt-6 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
+          <Button variant="secondary" onClick={() => goTo(step - 1)} disabled={step === 0}>
+            ← Back
+          </Button>
+          <div className="flex items-center gap-3">
+            {/* Step 1 — upload the staged resume */}
+            {step === 0 && pendingResume && (
+              <Button onClick={onUploadResume} disabled={resumeBusy || !previewValid}>
+                {resumeBusy ? (
+                  <>
+                    <Spinner /> Uploading…
+                  </>
+                ) : (
+                  "Upload"
                 )}
-                <Button type="submit" disabled={blueprintBusy || awaitingBuild || !canBuild}>
+              </Button>
+            )}
+            {/* Step 2 — submit the pasted JD (hidden once accepted) */}
+            {step === 1 && !jdReady && (
+              <Button onClick={() => onPasteJd()} disabled={jobBusy || jdProcessing || !jdText.trim()}>
+                {jobBusy ? <Spinner /> : "Use this JD"}
+              </Button>
+            )}
+            {/* Step 3 — save config + build the interview */}
+            {step === 2 && (
+              <>
+                <Button variant="secondary" onClick={() => onConfig()} disabled={configBusy || !configDirty}>
+                  {configBusy ? <Spinner /> : configDone ? "Update" : "Save"}
+                </Button>
+                <Button onClick={() => onBuild()} disabled={blueprintBusy || awaitingBuild || !canBuild}>
                   {blueprintBusy || awaitingBuild ? (
                     <>
                       <Spinner /> Building…
@@ -689,21 +756,15 @@ export default function Setup() {
                     "Build interview"
                   )}
                 </Button>
-              </form>
-            </div>
+              </>
+            )}
+            {/* Next — blocked until the current step's accepted event is done */}
+            {step < STEP_TITLES.length - 1 && (
+              <Button onClick={() => goTo(step + 1)} disabled={!doneFlags[step]}>
+                Next →
+              </Button>
+            )}
           </div>
-        )}
-
-        {/* Step navigation */}
-        <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
-          <Button variant="secondary" onClick={() => goTo(step - 1)} disabled={step === 0}>
-            ← Back
-          </Button>
-          {step < STEP_TITLES.length - 1 && (
-            <Button onClick={() => goTo(step + 1)} disabled={!doneFlags[step]}>
-              Next →
-            </Button>
-          )}
         </div>
       </Card>
 
@@ -722,8 +783,14 @@ export default function Setup() {
             when you're ready.
           </p>
           <div className="mt-6">
-            <Button onClick={() => navigate(`/${sessionId}/interview`)} className="w-full py-3 text-base">
-              Join the interview →
+            <Button onClick={onJoin} disabled={joining} className="w-full py-3 text-base">
+              {joining ? (
+                <>
+                  <Spinner /> Joining…
+                </>
+              ) : (
+                "Join the interview →"
+              )}
             </Button>
           </div>
         </div>

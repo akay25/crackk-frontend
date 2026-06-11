@@ -27,32 +27,28 @@ export interface CreateSessionResponse {
   setup_url: string;
 }
 
-export type StageStatus = "pending" | "running" | "ready" | "failed";
-
 export interface Session {
   id: string;
-  // Lifecycle: draft → ready → in_call → call_ended (call over, report building)
-  // → completed. `failed` is a terminal pipeline failure. Mirrors the backend
-  // SessionStatus enum (common/models/enums.py).
-  status: "draft" | "ready" | "in_call" | "call_ended" | "completed" | "failed";
+  // Single combined status string, e.g. "init", "resume.running", "jd.ready",
+  // "difficulty_set", "blueprint.ready", "interview.in_call", "interview.completed",
+  // "report.running", "completed". Parse it with the helpers in lib/ws.ts
+  // (parseStatus / reached / failedStage). The old per-stage *_status fields and the
+  // draft/ready/in_call/call_ended statuses no longer exist.
+  status: string;
   job_url: string | null;
   jd_source: "scraped" | "pasted" | null;
   jd_text: string | null;
   // null = not checked yet, false = rejected as non-technical, true = accepted.
   jd_is_technical: boolean | null;
-  difficulty: "junior" | "mid" | "senior" | "staff" | null;
+  resume_is_technical: boolean | null;
+  difficulty: number | null;
   target_pay: string | null;
   role_title: string | null;
   has_resume: boolean;
   has_blueprint: boolean;
-  // per-stage status — streamed live over the WebSocket (see lib/ws.ts)
-  resume_status: StageStatus;
-  jd_status: StageStatus;
-  blueprint_status: StageStatus;
-  report_status: StageStatus;
 }
 
-export type Difficulty = NonNullable<Session["difficulty"]>;
+export type Difficulty = "junior" | "mid" | "senior" | "staff";
 
 export interface JobInput {
   job_url?: string;

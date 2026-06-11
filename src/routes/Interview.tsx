@@ -2,7 +2,7 @@
 // the browser to the SFU room with @livekit/components-react, publish the mic, play
 // the agent's audio, and stream live captions. Route is token-guarded (magic token).
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   LiveKitRoom,
   RoomAudioRenderer,
@@ -18,8 +18,13 @@ import { Alert, Badge, Button, Card, Shell, Spinner, cn } from "../components/ui
 export default function Interview() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [conn, setConn] = useState<JoinResponse | null>(null);
+  // Setup hands us a freshly-minted connection via router state after it joins —
+  // connect straight away. On a direct visit / refresh there's none, so we show the
+  // "Ready to begin?" screen and join from here instead.
+  const handoff = (location.state as { conn?: JoinResponse } | null)?.conn ?? null;
+  const [conn, setConn] = useState<JoinResponse | null>(handoff);
   const [phase, setPhase] = useState<"idle" | "connecting" | "live" | "ended">("idle");
   const [err, setErr] = useState<string | null>(null);
 
