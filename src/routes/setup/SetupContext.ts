@@ -4,7 +4,7 @@
 // individual steps own their own local UI state (staged file, pasted text, form fields).
 import { createContext, useContext } from "react";
 import type { Session } from "../../types/api";
-import type { SessionState } from "../../lib/socket";
+import { SessionState } from "../../lib/socket";
 
 export type StepKey = "resume" | "jd" | "config";
 

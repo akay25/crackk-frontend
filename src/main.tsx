@@ -1,6 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
+import {
+  createBrowserRouter,
+  Navigate,
+  RouterProvider,
+} from "react-router-dom";
 
 import "./index.css";
 import Start from "./routes/Start";
@@ -30,18 +34,34 @@ const router = createBrowserRouter([
     path: "/:sessionId/setup",
     element: (
       <SessionGate route="setup">
-        <SetupLayout />
+        {({ socket, connected }) => (
+          <SetupLayout socket={socket} connected={connected} />
+        )}
       </SessionGate>
     ),
     children: [
-      { index: true, element: <Navigate to="resume" replace /> },
-      { path: "resume", element: <ResumeStep /> },
-      { path: "jd", element: <JdStep /> },
-      { path: "config", element: <ConfigStep /> },
+      // { index: true, element: <Navigate to="resume" replace /> },
+      // { path: "resume", element: <ResumeStep /> },
+      // { path: "jd", element: <JdStep /> },
+      // { path: "config", element: <ConfigStep /> },
     ],
   },
-  { path: "/:sessionId/interview", element: <SessionGate route="interview"><Interview /></SessionGate> },
-  { path: "/:sessionId/report", element: <SessionGate route="report"><Report /></SessionGate> },
+  // {
+  //   path: "/:sessionId/interview",
+  //   element: (
+  //     <SessionGate route="interview">
+  //       <Interview />
+  //     </SessionGate>
+  //   ),
+  // },
+  // {
+  //   path: "/:sessionId/report",
+  //   element: (
+  //     <SessionGate route="report">
+  //       <Report />
+  //     </SessionGate>
+  //   ),
+  // },
   // Catch-all — any unmatched URL renders the 404 page.
   { path: "*", element: <NotFound /> },
 ]);

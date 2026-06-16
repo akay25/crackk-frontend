@@ -1,51 +1,67 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, useRef, type ReactNode } from "react";
 import { Navigate, useParams } from "react-router-dom";
+import type { Socket } from "socket.io-client";
+
+// Local imports
 import { getSession } from "../api/session";
-import { parseStatus, useSessionStatus } from "../lib/socket";
 import SessionGateLoading from "../components/SessionGateLoading";
 import NotFound from "./NotFound";
 import { gateFor } from "../utils";
 import { ROUTE_KEY } from "../constants";
 import { connectToWSSocket } from "../socket_io";
+import { Session } from "../types/api";
+import { SessionGateChildProps } from "../types";
 
 export default function SessionGate({
   route,
   children,
 }: {
   route: ROUTE_KEY;
-  children: ReactNode;
+  children: (props: SessionGateChildProps) => ReactNode;
 }) {
   const { sessionId } = useParams();
 
-  // Connect to ws here,
-  // Pass the socket to child event for their respective events
-  const wsConn = connectToWSSocket(sessionId ?? "");
-
-  const live = useSessionStatus(sessionId ?? null);
-  const [seed, setSeed] = useState<string | null>(null);
-  const [seedNotFound, setSeedNotFound] = useState(false);
+  // Socket ref
+  const wsRef = useRef<Socket | null>(null);
+  const [connectedToSocket, setConnectedToSocket] = useState(false);
+  const [isAPILoading, setIsAPILoading] = useState(false);
+  const [interviewSession, setInterviewSession] = useState<Session | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!sessionId) return;
+    setIsAPILoading(true);
     let active = true;
     getSession(sessionId)
-      .then((s) => active && setSeed(s.status))
-      .catch((e) => {
-        console.log("this is seed: %o", seed);
-        if (active && String(e).includes("404")) setSeedNotFound(true);
+      .then((s) => {
+        active && setInterviewSession(s);
+        // Now connect to ws here
+        console.log("Connecting to websocket");
+        wsRef.current = connectToWSSocket(sessionId);
+        setConnectedToSocket(true);
+      })
+      .catch((_) => {
+        // TODO: Show toast that sessionId not found
+      })
+      .finally(() => {
+        setIsAPILoading(false);
       });
 
     return () => {
+      wsRef.current?.disconnect();
+      wsRef.current = null;
       active = false;
     };
   }, [sessionId]);
 
-  // Effective state: the live event when present, otherwise the REST seed parsed back
-  // into { stage, status }.
-  const eff = live.stage ? live : parseStatus(seed);
+  // Load eff
+  const eff = interviewSession
+    ? { stage: interviewSession.stage, status: interviewSession.status }
+    : { stage: null, status: null };
 
-  // Unknown session (the REST seed 404'd) — same page as any other unmatched route.
-  if (!sessionId || seedNotFound) return <NotFound />;
+  if (isAPILoading) return <SessionGateLoading />;
+  if (!sessionId || interviewSession === null) return <NotFound />;
   if (!eff.stage) return <SessionGateLoading />;
 
   const belongs = gateFor(eff.stage, eff.status);
@@ -53,6 +69,7 @@ export default function SessionGate({
     return <Navigate to={`/${sessionId}/${belongs}`} replace />;
   }
 
-  // return <>{children}</>;
-  return <div>hello world</div>;
+  return (
+    <>{children({ socket: wsRef.current, connected: connectedToSocket })}</>
+  );
 }

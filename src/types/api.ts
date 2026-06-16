@@ -1,10 +1,10 @@
-
 export interface Session {
   id: string;
   status: string;
   job_url: string | null;
   jd_source: "scraped" | "pasted" | null;
   jd_text: string | null;
+  stage: SessionStage;
   // null = not checked yet, false = rejected as non-technical, true = accepted.
   jd_is_technical: boolean | null;
   resume_is_technical: boolean | null;
@@ -21,6 +21,15 @@ export interface CreateSessionResponse {
   setup_url: string;
 }
 
+export type SessionStage =
+  | "init"
+  | "resume"
+  | "jd"
+  | "difficulty_set"
+  | "blueprint"
+  | "interview"
+  | "report"
+  | "completed";
 export type Difficulty = "junior" | "mid" | "senior" | "staff";
 
 export interface JobInput {

@@ -8,7 +8,7 @@ import type {
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
 } from "react";
-import { useSocketConnected } from "../lib/socket";
+// import { useSocketConnected } from "../lib/socket";
 
 export function cn(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(" ");
@@ -33,8 +33,15 @@ export function Modal({
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
         {children}
       </div>
@@ -43,20 +50,30 @@ export function Modal({
 }
 
 /** App chrome: brand header + centered content column. */
-export function Shell({ children, max = "max-w-2xl" }: { children: ReactNode; max?: string }) {
+export function Shell({
+  children,
+  max = "max-w-2xl",
+}: {
+  children: ReactNode;
+  max?: string;
+}) {
   return (
     <div className="flex h-screen flex-col">
       <header className="shrink-0 border-b border-slate-200/70 bg-white/70 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center gap-2.5 px-5 py-3.5">
           <Logo />
-          <span className="font-semibold tracking-tight text-slate-900">AI Interviewer</span>
+          <span className="font-semibold tracking-tight text-slate-900">
+            AI Interviewer
+          </span>
           <span className="ml-auto">
             <ConnectionStatus />
           </span>
         </div>
       </header>
       <div className="flex flex-1 flex-col overflow-y-auto">
-        <main className={cn("mx-auto w-full flex-1 px-5 py-10", max)}>{children}</main>
+        <main className={cn("mx-auto w-full flex-1 px-5 py-10", max)}>
+          {children}
+        </main>
         <Footer />
       </div>
     </div>
@@ -74,13 +91,21 @@ export function Footer() {
 
 // Live-link indicator — connected / disconnected, from the Socket.IO connect events.
 export function ConnectionStatus() {
-  const isConnected = useSocketConnected();
+  const isConnected = true; // useSocketConnected();
   return (
     <span
-      className={cn("inline-flex items-center gap-1.5 text-xs font-medium", isConnected ? "text-slate-500" : "text-rose-600")}
+      className={cn(
+        "inline-flex items-center gap-1.5 text-xs font-medium",
+        isConnected ? "text-slate-500" : "text-rose-600",
+      )}
       title="Live connection status"
     >
-      <span className={cn("size-1.5 rounded-full", isConnected ? "bg-emerald-500" : "bg-rose-500 animate-pulse")} />
+      <span
+        className={cn(
+          "size-1.5 rounded-full",
+          isConnected ? "bg-emerald-500" : "bg-rose-500 animate-pulse",
+        )}
+      />
       {isConnected ? "Connected" : "Disconnected"}
     </span>
   );
@@ -95,7 +120,13 @@ export function Logo({ className = "" }: { className?: string }) {
       )}
       aria-hidden
     >
-      <svg viewBox="0 0 24 24" fill="none" className="size-4.5" stroke="currentColor" strokeWidth={2}>
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        className="size-4.5"
+        stroke="currentColor"
+        strokeWidth={2}
+      >
         <path d="M12 3a4 4 0 0 0-4 4v3a4 4 0 0 0 8 0V7a4 4 0 0 0-4-4Z" />
         <path d="M5 11a7 7 0 0 0 14 0M12 18v3" strokeLinecap="round" />
       </svg>
@@ -153,9 +184,18 @@ export function Button({
   );
 }
 
-export function Label({ children, htmlFor }: { children: ReactNode; htmlFor?: string }) {
+export function Label({
+  children,
+  htmlFor,
+}: {
+  children: ReactNode;
+  htmlFor?: string;
+}) {
   return (
-    <label htmlFor={htmlFor} className="mb-1.5 block text-sm font-medium text-slate-700">
+    <label
+      htmlFor={htmlFor}
+      className="mb-1.5 block text-sm font-medium text-slate-700"
+    >
       {children}
     </label>
   );
@@ -164,7 +204,10 @@ export function Label({ children, htmlFor }: { children: ReactNode; htmlFor?: st
 const FIELD =
   "w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 disabled:opacity-60";
 
-export function Input({ className = "", ...props }: InputHTMLAttributes<HTMLInputElement>) {
+export function Input({
+  className = "",
+  ...props
+}: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={cn(FIELD, className)} {...props} />;
 }
 
@@ -175,8 +218,16 @@ export function Textarea({
   return <textarea className={cn(FIELD, "resize-y", className)} {...props} />;
 }
 
-export function Select({ className = "", ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select className={cn(FIELD, "appearance-none pr-9", className)} {...props} />;
+export function Select({
+  className = "",
+  ...props
+}: SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      className={cn(FIELD, "appearance-none pr-9", className)}
+      {...props}
+    />
+  );
 }
 
 type Tone = "slate" | "green" | "amber" | "rose" | "indigo";
@@ -189,7 +240,13 @@ const TONES: Record<Tone, string> = {
   indigo: "bg-indigo-50 text-indigo-700 ring-indigo-200",
 };
 
-export function Badge({ children, tone = "slate" }: { children: ReactNode; tone?: Tone }) {
+export function Badge({
+  children,
+  tone = "slate",
+}: {
+  children: ReactNode;
+  tone?: Tone;
+}) {
   return (
     <span
       className={cn(
@@ -214,15 +271,32 @@ export function Alert({
       ? "border-rose-200 bg-rose-50 text-rose-800"
       : "border-amber-200 bg-amber-50 text-amber-800";
   return (
-    <div className={cn("rounded-xl border px-4 py-3 text-sm", styles)}>{children}</div>
+    <div className={cn("rounded-xl border px-4 py-3 text-sm", styles)}>
+      {children}
+    </div>
   );
 }
 
 export function Spinner({ className = "" }: { className?: string }) {
   return (
-    <svg className={cn("size-4 animate-spin", className)} viewBox="0 0 24 24" fill="none">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z" />
+    <svg
+      className={cn("size-4 animate-spin", className)}
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      />
+      <path
+        className="opacity-90"
+        fill="currentColor"
+        d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z"
+      />
     </svg>
   );
 }

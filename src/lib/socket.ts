@@ -41,9 +41,17 @@ export function useSessionStatus(sessionId: string | null) {
     function onDisconnect() {
       setIsConnected(false);
     }
-    function onUpdate(m: { stage: string; status?: string | null; reason?: string | null }) {
+    function onUpdate(m: {
+      stage: string;
+      status?: string | null;
+      reason?: string | null;
+    }) {
       console.log("Update event occured: %o", m);
-      setState({ stage: m.stage, status: m.status ?? null, reason: m.reason ?? null });
+      setState({
+        stage: m.stage,
+        status: m.status ?? null,
+        reason: m.reason ?? null,
+      });
     }
 
     socket.on("connect", onConnect);
@@ -93,8 +101,24 @@ export function parseStatus(combined: string | null | undefined): StagePair {
 }
 
 // Happy-path order of stages, and how far each sub-status sits within a stage.
-const STAGE_ORDER = ["init", "resume", "jd", "difficulty_set", "blueprint", "interview", "report", "completed"];
-const SUB_RANK: Record<string, number> = { pending: 0, running: 1, failed: 1, ready: 2, in_call: 3, completed: 4 };
+const STAGE_ORDER = [
+  "init",
+  "resume",
+  "jd",
+  "difficulty_set",
+  "blueprint",
+  "interview",
+  "report",
+  "completed",
+];
+const SUB_RANK: Record<string, number> = {
+  pending: 0,
+  running: 1,
+  failed: 1,
+  ready: 2,
+  in_call: 3,
+  completed: 4,
+};
 
 function rank(stage: string | null, status: string | null): number {
   const i = STAGE_ORDER.indexOf(stage ?? "");
@@ -103,7 +127,10 @@ function rank(stage: string | null, status: string | null): number {
 }
 
 /** True when `s` has reached or passed `target` (e.g. "resume.ready") on the happy path. */
-export function reached(s: StagePair | null | undefined, target: string): boolean {
+export function reached(
+  s: StagePair | null | undefined,
+  target: string,
+): boolean {
   if (!s?.stage) return false;
   const t = parseStatus(target);
   return rank(s.stage, s.status) >= rank(t.stage, t.status);
