@@ -8,19 +8,11 @@ import {
 } from "react-router-dom";
 import type { Socket } from "socket.io-client";
 
-import { getSession as getSessionFromAPI, joinCall } from "../../api/session";
+import { getSession as getSessionFromAPI } from "../../api/session";
 import type { Session } from "../../types/api";
 import type { SessionState } from "../../types";
 import { useLiveStatus } from "../../socket_io";
-import {
-  Alert,
-  Badge,
-  Button,
-  Card,
-  Modal,
-  Shell,
-  Spinner,
-} from "../../components/ui";
+import { Alert, Badge, Button, Card, Shell } from "../../components/ui";
 import StepperHeader from "../../components/StepperHeader";
 import { SetupContext } from "../../context/SetupContext";
 import { SETUP_STEPS, SetupContextValue } from "../../types/SetupPage";
@@ -41,7 +33,6 @@ export default function SetupLayout({
   const [session, setSession] = useState<Session | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [reparsing, setReparsing] = useState(false);
-  const [joining, setJoining] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!sessionId) return;
@@ -57,7 +48,11 @@ export default function SetupLayout({
   const live = useLiveStatus(socket);
   const state: SessionState = live.stage
     ? live
-    : { stage: session?.stage ?? null, status: session?.status ?? null, reason: null };
+    : {
+        stage: session?.stage ?? null,
+        status: session?.status ?? null,
+        reason: null,
+      };
 
   // Initial load + re-sync the richer session fields each time a live event arrives.
   useEffect(() => {
@@ -73,6 +68,12 @@ export default function SetupLayout({
   const configDone = reached(state, "difficulty_set");
   const hasBlueprint =
     (session?.has_blueprint ?? false) || reached(state, "blueprint.ready");
+
+  // If this current session has blueprint, then redirect to interview page
+  if (hasBlueprint) {
+    navigate(`/${sessionId}/interview/`);
+  }
+
   const doneFlags = [resumeReady, jdReady, configDone];
 
   // You can revisit any completed step and reach the first unfinished one, but not skip
@@ -94,22 +95,6 @@ export default function SetupLayout({
     },
     [navigate, sessionId],
   );
-
-  // Start the interview from the "ready" modal. joinCall flips the session to
-  // interview.in_call (so SessionGate admits us to /interview) and mints the LiveKit
-  // token, handed to the Interview page via router state so it connects straight away.
-  async function onJoin() {
-    if (!sessionId) return;
-    setErr(null);
-    setJoining(true);
-    try {
-      const conn = await joinCall(sessionId);
-      navigate(`/${sessionId}/interview`, { state: { conn } });
-    } catch (e) {
-      setErr(String(e));
-      setJoining(false);
-    }
-  }
 
   const ctx = useMemo<SetupContextValue>(
     () => ({
@@ -223,50 +208,6 @@ export default function SetupLayout({
           <Outlet />
         </Card>
       </Shell>
-
-      {/* Once the blueprint is ready, the only thing to do is join — a focused,
-          non-dismissible modal takes over regardless of which step is showing. */}
-      <Modal open={hasBlueprint} onClose={() => {}}>
-        <div className="text-center">
-          <div className="mx-auto grid size-12 place-items-center rounded-full bg-emerald-100 text-emerald-600">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              className="size-6"
-              stroke="currentColor"
-              strokeWidth={2.5}
-            >
-              <path
-                d="m5 13 4 4L19 7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
-          <h2 className="mt-4 text-lg font-bold text-slate-900">
-            Your interview is ready 🎉
-          </h2>
-          <p className="mt-1.5 text-sm text-slate-600">
-            We've built your tailored interview. Find a quiet space with a
-            working mic, then join when you're ready.
-          </p>
-          <div className="mt-6">
-            <Button
-              onClick={onJoin}
-              disabled={joining}
-              className="w-full py-3 text-base"
-            >
-              {joining ? (
-                <>
-                  <Spinner /> Joining…
-                </>
-              ) : (
-                "Join the interview →"
-              )}
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </SetupContext.Provider>
   );
 }

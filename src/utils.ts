@@ -31,6 +31,11 @@ export function gateFor(stage: string, status: string | null): ROUTE_KEY {
     return "interview";
   }
 
+  // Blueprint condition
+  if (stage === "blueprint" && status === "ready") {
+    return "interview";
+  }
+
   // Everything else — init, resume.*, jd.*, difficulty_set, blueprint.* — is setup.
   return "setup";
 }
@@ -46,8 +51,22 @@ export function statusTone(
 }
 
 // Human-readable label for a stage + sub-status pair, e.g. "resume · running".
-export const statusLabel = (stage: string | null, status: string | null) =>
-  [stage, status].filter(Boolean).join(" · ").replace(/_/g, " ");
+export const statusLabel = (stage: string | null, status: string | null) => {
+  let readableStage = "";
+  switch (stage) {
+    case "resume":
+      readableStage = "Resume";
+      break;
+    case "jd":
+      readableStage = "Job Description";
+      break;
+    case "difficulty_set":
+      readableStage = "Role config";
+      status = "";
+      break;
+  }
+  return [readableStage, status].filter(Boolean).join(" · ");
+};
 
 // Score → color treatment for report bars / rings / badges.
 export function tone(score: number) {
@@ -126,7 +145,5 @@ export function failedStage(s: StagePair | null | undefined): string | null {
   console.log("this is state: %o", s);
   if (!s) return null;
 
-  return s.status === "failed" || s.status?.includes(".failed") === true
-    ? s.stage
-    : null;
+  return s.status === "failed" ? s.stage : null;
 }
