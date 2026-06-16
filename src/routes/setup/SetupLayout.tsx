@@ -4,7 +4,8 @@
 // config) renders into <Outlet/>, reading shared state via useSetup().
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate, Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
-import { getSession, joinCall, type Session } from "../../lib/api";
+import { getSession, joinCall } from "../../api/session";
+import type { Session } from "../../types/api";
 import { parseStatus, reached, useSessionStatus, type SessionState } from "../../lib/socket";
 import { Alert, Badge, Button, Card, Modal, Shell, Spinner, cn } from "../../components/ui";
 import { SETUP_STEPS, SetupContext, type SetupContextValue } from "./SetupContext";

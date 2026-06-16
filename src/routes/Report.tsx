@@ -9,7 +9,8 @@
 // PLACEHOLDER below) and tagged "sample" in the UI until the backend supplies them.
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { getReport, getSession, type CompetencyScore, type Report as ReportData } from "../lib/api";
+import { getReport, getSession } from "../api/session";
+import type { CompetencyScore, Report as ReportData } from "../types/api";
 import { failedStage, reached, useSessionStatus } from "../lib/socket";
 import { Alert, Button, Card, Shell, Spinner } from "../components/ui";
 

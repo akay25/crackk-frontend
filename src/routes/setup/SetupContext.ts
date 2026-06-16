@@ -3,7 +3,7 @@
 // the cross-cutting "done" flags that drive the stepper header and step gating; the
 // individual steps own their own local UI state (staged file, pasted text, form fields).
 import { createContext, useContext } from "react";
-import type { Session } from "../../lib/api";
+import type { Session } from "../../types/api";
 import type { SessionState } from "../../lib/socket";
 
 export type StepKey = "resume" | "jd" | "config";

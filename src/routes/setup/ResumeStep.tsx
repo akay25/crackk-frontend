@@ -2,7 +2,8 @@
 // the actual upload happens on the explicit "Upload" button. Drives its UI off the live
 // resume.* status (running → ready / failed). Shared state comes from useSetup().
 import { Suspense, lazy, useCallback, useEffect, useState } from "react";
-import { getResumeProfile, uploadResume, type ParsedProfile } from "../../lib/api";
+import { getResumeProfile, uploadResume } from "../../api/session";
+import type { ParsedProfile } from "../../types/api";
 import { failedStage, reached } from "../../lib/socket";
 import { Button, Modal, Spinner, cn } from "../../components/ui";
 import ResumeProfilePreview from "../../components/ResumeProfilePreview";

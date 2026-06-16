@@ -2,7 +2,8 @@
 // (no email). The candidate keeps this link to return anytime.
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createSession, type CreateSessionResponse } from "../lib/api";
+import { createSession } from "../api/session";
+import type { CreateSessionResponse } from "../types/api";
 import { Alert, Button, Card, Footer, Spinner } from "../components/ui";
 
 const FEATURES = [

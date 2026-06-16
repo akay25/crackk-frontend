@@ -12,7 +12,8 @@ import {
   useTranscriptions,
   useVoiceAssistant,
 } from "@livekit/components-react";
-import { joinCall, type JoinResponse } from "../lib/api";
+import { joinCall } from "../api/session";
+import type { JoinResponse } from "../types/api";
 import { Alert, Badge, Button, Card, Shell, Spinner, cn } from "../components/ui";
 
 export default function Interview() {

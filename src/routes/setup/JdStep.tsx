@@ -2,7 +2,7 @@
 // directly. Drives its UI off the live jd.* status (running → ready / failed), and
 // distinguishes a "not technical" rejection from a generic processing failure.
 import { useState } from "react";
-import { setJob } from "../../lib/api";
+import { setJob } from "../../api/session";
 import { failedStage } from "../../lib/socket";
 import { Alert, Badge, Button, Label, Spinner, Textarea } from "../../components/ui";
 import { useSetup } from "./SetupContext";

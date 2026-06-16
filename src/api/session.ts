@@ -5,6 +5,7 @@ import {
   JobInput,
   JoinResponse,
   ParsedProfile,
+  Report,
   Session,
 } from "../types/api";
 import { getOrCreateUserId } from "../utils";

@@ -2,7 +2,8 @@
 // config (moves the session to difficulty_set); Build kicks off blueprint generation.
 // When the blueprint becomes ready, SetupLayout's global "join" modal takes over.
 import { useEffect, useRef, useState } from "react";
-import { buildBlueprint, setConfig, type ConfigInput, type Difficulty } from "../../lib/api";
+import { buildBlueprint, setConfig } from "../../api/session";
+import type { ConfigInput, Difficulty } from "../../types/api";
 import { parseStatus, reached } from "../../lib/socket";
 import { Button, Input, Label, Spinner } from "../../components/ui";
 import { useSetup } from "./SetupContext";

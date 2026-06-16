@@ -2,7 +2,7 @@
 // candidate can confirm it looks right before building the interview. Renders a
 // ParsedProfile (common/schemas/parsed_profile.schema.json). On low parse
 // confidence we nudge the candidate to double-check (e.g. scanned PDF).
-import type { ParsedProfile } from "../lib/api";
+import type { ParsedProfile } from "../types/api";
 import { Alert, Badge } from "./ui";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
