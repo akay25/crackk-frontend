@@ -3,13 +3,13 @@
 // When the blueprint becomes ready, SetupLayout's global "join" modal takes over.
 import { useEffect, useRef, useState } from "react";
 import { buildBlueprint, setConfig } from "../../api/session";
-import type { ConfigInput, Difficulty } from "../../types/api";
+import type { ConfigInput, Role } from "../../types/api";
 import { reached } from "../../utils";
 import { Button, Input, Label, Spinner } from "../../components/ui";
 import { useSetup } from "../../context/SetupContext";
 import StepNav from "../../components/StepNav";
 
-const DIFFICULTIES: Difficulty[] = ["junior", "mid", "senior", "staff"];
+const ROLES: Role[] = ["junior", "mid", "senior", "staff"];
 
 export default function ConfigStep() {
   const {
@@ -23,9 +23,8 @@ export default function ConfigStep() {
     hasBlueprint,
   } = useSetup();
 
-  const [difficulty, setDifficulty] = useState<Difficulty>("mid");
   const [targetPay, setTargetPay] = useState("");
-  const [roleTitle, setRoleTitle] = useState("");
+  const [roleTitle, setRoleTitle] = useState<Role>("mid");
   const [configBusy, setConfigBusy] = useState(false);
   // Save is enabled only when the form differs from what's saved. Goes false after a
   // successful save, true on any field edit. Seeded once from the loaded session.
@@ -47,8 +46,14 @@ export default function ConfigStep() {
     if (!session || configInited.current) return;
     configInited.current = true;
     setTargetPay(session.target_pay ?? "");
-    setRoleTitle(session.role_title ?? "");
-    setConfigDirty(!reached({ stage: session.stage, status: session.status }, "difficulty_set"));
+    // @ts-ignore
+    setRoleTitle(session.role_title ?? "mid");
+    setConfigDirty(
+      !reached(
+        { stage: session.stage, status: session.status },
+        "difficulty_set",
+      ),
+    );
   }, [session]);
 
   // Once the blueprint is ready, resolve the build button's loading state.
@@ -61,9 +66,10 @@ export default function ConfigStep() {
     if (!sessionId) return;
     setErr(null);
     setConfigBusy(true);
-    const input: ConfigInput = { difficulty };
+    const input: ConfigInput = {
+      role_title: roleTitle,
+    };
     if (targetPay.trim()) input.target_pay = targetPay.trim();
-    if (roleTitle.trim()) input.role_title = roleTitle.trim();
     try {
       await setConfig(sessionId, input);
       setConfigDirty(false); // saved — disable until the next edit
@@ -98,19 +104,19 @@ export default function ConfigStep() {
       </h2>
       <div className="mt-4 space-y-4">
         <div>
-          <Label>Difficulty</Label>
+          <Label>Role</Label>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {DIFFICULTIES.map((d) => (
+            {ROLES.map((d) => (
               <button
                 key={d}
                 type="button"
                 onClick={() => {
-                  setDifficulty(d);
+                  setRoleTitle(d);
                   setConfigDirty(true);
                 }}
                 className={
                   "rounded-xl border px-3 py-2 text-sm font-medium capitalize transition " +
-                  (difficulty === d
+                  (roleTitle === d
                     ? "border-indigo-500 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-500"
                     : "border-slate-300 bg-white text-slate-600 hover:border-slate-400")
                 }
@@ -129,18 +135,6 @@ export default function ConfigStep() {
               value={targetPay}
               onChange={(e) => {
                 setTargetPay(e.target.value);
-                setConfigDirty(true);
-              }}
-            />
-          </div>
-          <div>
-            <Label>Role title (optional)</Label>
-            <Input
-              type="text"
-              placeholder="Senior Backend Engineer"
-              value={roleTitle}
-              onChange={(e) => {
-                setRoleTitle(e.target.value);
                 setConfigDirty(true);
               }}
             />

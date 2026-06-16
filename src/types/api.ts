@@ -30,7 +30,7 @@ export type SessionStage =
   | "interview"
   | "report"
   | "completed";
-export type Difficulty = "junior" | "mid" | "senior" | "staff";
+export type Role = "junior" | "mid" | "senior" | "staff";
 
 export interface JobInput {
   job_url?: string;
@@ -38,9 +38,8 @@ export interface JobInput {
 }
 
 export interface ConfigInput {
-  difficulty: Difficulty;
   target_pay?: string;
-  role_title?: string;
+  role_title: Role;
 }
 
 export interface ExperienceItem {
