@@ -8,6 +8,7 @@ import type {
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
 } from "react";
+import { useSocketConnected } from "../lib/socket";
 
 export function cn(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(" ");
@@ -49,6 +50,9 @@ export function Shell({ children, max = "max-w-2xl" }: { children: ReactNode; ma
         <div className="mx-auto flex max-w-5xl items-center gap-2.5 px-5 py-3.5">
           <Logo />
           <span className="font-semibold tracking-tight text-slate-900">AI Interviewer</span>
+          <span className="ml-auto">
+            <ConnectionStatus />
+          </span>
         </div>
       </header>
       <div className="flex flex-1 flex-col overflow-y-auto">
@@ -65,6 +69,20 @@ export function Footer() {
     <footer className="border-t border-slate-200/70 py-6 text-center text-sm text-slate-500">
       Made after eating chicken rice
     </footer>
+  );
+}
+
+// Live-link indicator — connected / disconnected, from the Socket.IO connect events.
+export function ConnectionStatus() {
+  const isConnected = useSocketConnected();
+  return (
+    <span
+      className={cn("inline-flex items-center gap-1.5 text-xs font-medium", isConnected ? "text-slate-500" : "text-rose-600")}
+      title="Live connection status"
+    >
+      <span className={cn("size-1.5 rounded-full", isConnected ? "bg-emerald-500" : "bg-rose-500 animate-pulse")} />
+      {isConnected ? "Connected" : "Disconnected"}
+    </span>
   );
 }
 

@@ -1,1 +1,24 @@
-{"root":["./src/main.tsx","./src/vite-env.d.ts","./src/components/pdfpreview.tsx","./src/components/resumeprofilepreview.tsx","./src/components/ui.tsx","./src/lib/api.ts","./src/lib/livekit.ts","./src/lib/ws.ts","./src/routes/interview.tsx","./src/routes/notfound.tsx","./src/routes/report.tsx","./src/routes/sessiongate.tsx","./src/routes/setup.tsx","./src/routes/start.tsx"],"version":"5.9.3"}
+{
+    "root": [
+        "./src/main.tsx",
+        "./src/vite-env.d.ts",
+        "./src/components/pdfpreview.tsx",
+        "./src/components/resumeprofilepreview.tsx",
+        "./src/components/ui.tsx",
+        "./src/lib/api.ts",
+        "./src/lib/livekit.ts",
+        "./src/lib/socket.ts",
+        "./src/routes/interview.tsx",
+        "./src/routes/notfound.tsx",
+        "./src/routes/report.tsx",
+        "./src/routes/sessiongate.tsx",
+        "./src/routes/start.tsx",
+        "./src/routes/setup/configstep.tsx",
+        "./src/routes/setup/jdstep.tsx",
+        "./src/routes/setup/resumestep.tsx",
+        "./src/routes/setup/setupcontext.ts",
+        "./src/routes/setup/setuplayout.tsx",
+        "./src/routes/setup/stepnav.tsx"
+    ],
+    "version": "5.9.3"
+}

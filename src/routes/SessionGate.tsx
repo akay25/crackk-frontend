@@ -8,32 +8,30 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import { getSession } from "../lib/api";
-import { parseStatus, useSessionStatus } from "../lib/ws";
+import { parseStatus, useSessionStatus } from "../lib/socket";
 import { Shell, Spinner } from "../components/ui";
 import NotFound from "./NotFound";
 
 export type RouteKey = "setup" | "interview" | "report";
 
-// Map a combined status to the single page the user belongs on:
+// Map a (stage, status) pair to the single page the user belongs on:
 //   - init / resume.* / jd.* / difficulty_set / blueprint.*  → setup only
 //   - interview.ready / interview.in_call                    → interview only
 //   - interview.completed / interview.failed / report.* / completed → report only
 // The candidate can't sidestep this by editing the URL.
-function gateFor(status: string): RouteKey {
-  const { stage, sub } = parseStatus(status);
-
+function gateFor(stage: string, status: string | null): RouteKey {
   // Report zone: the report stage, the terminal "completed", or the interview having
   // finished/failed (report building, or no report possible).
   if (
     stage === "report" ||
     stage === "completed" ||
-    (stage === "interview" && (sub === "completed" || sub === "failed"))
+    (stage === "interview" && (status === "completed" || status === "failed"))
   ) {
     return "report";
   }
 
   // Interview zone: at the interview stage, ready to start or in a live call.
-  if (stage === "interview" && (sub === "ready" || sub === "in_call")) {
+  if (stage === "interview" && (status === "ready" || status === "in_call")) {
     return "interview";
   }
 
@@ -74,14 +72,15 @@ export default function SessionGate({ route, children }: { route: RouteKey; chil
     };
   }, [sessionId]);
 
-  const status = live.status ?? seed;
+  // Effective state: the live event when present, otherwise the REST seed parsed back
+  // into { stage, status }.
+  const eff = live.stage ? live : parseStatus(seed);
 
-  // Unknown session (WS closed 4404, or the REST seed 404'd) — same page as any
-  // other unmatched route.
-  if (!sessionId || live.notFound || seedNotFound) return <NotFound />;
-  if (!status) return <Loading />;
+  // Unknown session (the REST seed 404'd) — same page as any other unmatched route.
+  if (!sessionId || seedNotFound) return <NotFound />;
+  if (!eff.stage) return <Loading />;
 
-  const belongs = gateFor(status);
+  const belongs = gateFor(eff.stage, eff.status);
   if (belongs !== route) {
     return <Navigate to={`/${sessionId}/${belongs}`} replace />;
   }

@@ -1,15 +1,18 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
 
 import "./index.css";
 import Start from "./routes/Start";
-import Setup from "./routes/Setup";
+import SetupLayout from "./routes/setup/SetupLayout";
+import ResumeStep from "./routes/setup/ResumeStep";
+import JdStep from "./routes/setup/JdStep";
+import ConfigStep from "./routes/setup/ConfigStep";
 import Interview from "./routes/Interview";
 import Report from "./routes/Report";
 import NotFound from "./routes/NotFound";
 import SessionGate from "./routes/SessionGate";
-import { getOrCreateUserId } from "./lib/api";
+import { getOrCreateUserId } from "./utils";
 
 // Generate + persist the anonymous user id on first load.
 getOrCreateUserId();
@@ -21,7 +24,22 @@ getOrCreateUserId();
 // and shows a not-found screen when the WS closes 4404.
 const router = createBrowserRouter([
   { path: "/", element: <Start /> },
-  { path: "/:sessionId/setup", element: <SessionGate route="setup"><Setup /></SessionGate> },
+  // Setup is a nested-route stepper: SetupLayout holds the shared state + stepper chrome
+  // and renders the active step (resume / jd / config) into its <Outlet/>.
+  {
+    path: "/:sessionId/setup",
+    element: (
+      <SessionGate route="setup">
+        <SetupLayout />
+      </SessionGate>
+    ),
+    children: [
+      { index: true, element: <Navigate to="resume" replace /> },
+      { path: "resume", element: <ResumeStep /> },
+      { path: "jd", element: <JdStep /> },
+      { path: "config", element: <ConfigStep /> },
+    ],
+  },
   { path: "/:sessionId/interview", element: <SessionGate route="interview"><Interview /></SessionGate> },
   { path: "/:sessionId/report", element: <SessionGate route="report"><Report /></SessionGate> },
   // Catch-all — any unmatched URL renders the 404 page.

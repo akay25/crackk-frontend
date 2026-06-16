@@ -14,9 +14,10 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/api/, ""),
       },
-      // WebSocket status stream → FastAPI (same /ws path on the backend).
-      "/ws": {
-        target: "ws://localhost:8000",
+      // Socket.IO live status stream → the Socket.IO ASGI app (same origin as REST).
+      "/socket.io": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
         ws: true,
       },
     },

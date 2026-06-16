@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getReport, getSession, type CompetencyScore, type Report as ReportData } from "../lib/api";
-import { failedStage, useSessionStatus } from "../lib/ws";
+import { failedStage, reached, useSessionStatus } from "../lib/socket";
 import { Alert, Button, Card, Shell, Spinner } from "../components/ui";
 
 // ---- Static placeholders: no backing report data yet. Tagged "sample" in the UI. ----
@@ -354,30 +354,30 @@ export default function Report() {
     }
   }, [sessionId]);
 
-  // Live combined status over WebSocket — no polling.
+  // Live state over Socket.IO — no polling.
   const live = useSessionStatus(sessionId ?? null);
-  const status = live.status;
   // Report failed, OR the interview itself failed (no conversation → no report).
-  const interviewFailed = status === "interview.failed";
-  const failed = failedStage(status) === "report" || interviewFailed;
+  const interviewFailed = live.stage === "interview" && live.status === "failed";
+  const failed = failedStage(live) === "report" || interviewFailed;
 
   // Pull the role title for the header (the only real header field we have).
   useEffect(() => {
     if (!sessionId) return;
     getSession(sessionId)
       .then((s) => setRole(s.role_title))
-      .catch(() => {});
+      .catch(() => { });
   }, [sessionId]);
 
-  // Try once on arrival (the report may already be done), then fetch exactly when the
-  // session reaches the terminal "completed" status (there is no report.ready on
-  // success — the report stage transitions straight to bare "completed").
+  // Try once on arrival (the report may already be done), then fetch when the report
+  // becomes available — report_gen emits "report.ready" over the socket; the terminal
+  // bare "completed" transition is API-driven and isn't pushed today, so we react to
+  // either.
   useEffect(() => {
     load();
   }, [load]);
   useEffect(() => {
-    if (status === "completed") load();
-  }, [status, load]);
+    if (live.stage === "completed" || reached(live, "report.ready")) load();
+  }, [live.stage, live.status, load]);
 
   if (report && !failed) {
     return (
