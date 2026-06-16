@@ -1,10 +1,5 @@
-// Shared state for the Setup stepper, provided by SetupLayout and consumed by each
-// step route (resume / jd / config). The layout owns the session, the live status, and
-// the cross-cutting "done" flags that drive the stepper header and step gating; the
-// individual steps own their own local UI state (staged file, pasted text, form fields).
-import { createContext, useContext } from "react";
-import type { Session } from "../../types/api";
-import { SessionState } from "../../lib/socket";
+import { Session } from "./api";
+import { SessionState } from "./index";
 
 export type StepKey = "resume" | "jd" | "config";
 
@@ -23,8 +18,6 @@ export const SETUP_STEPS: SetupStep[] = [
 export interface SetupContextValue {
   sessionId: string;
   session: Session | null;
-  /** Effective live state — { stage, status, reason } — from the socket event, or the
-   *  REST seed parsed when no event has arrived yet. */
   state: SessionState;
   err: string | null;
   setErr: (e: string | null) => void;
@@ -49,12 +42,4 @@ export interface SetupContextValue {
   // Step navigation, backed by the nested routes under /setup.
   currentIndex: number;
   goToIndex: (i: number) => void;
-}
-
-export const SetupContext = createContext<SetupContextValue | null>(null);
-
-export function useSetup(): SetupContextValue {
-  const ctx = useContext(SetupContext);
-  if (!ctx) throw new Error("useSetup must be used within <SetupLayout>");
-  return ctx;
 }
