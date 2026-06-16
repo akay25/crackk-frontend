@@ -4,15 +4,24 @@
 import { useEffect, useRef, useState } from "react";
 import { buildBlueprint, setConfig } from "../../api/session";
 import type { ConfigInput, Difficulty } from "../../types/api";
-import { parseStatus, reached } from "../../lib/socket";
+import { reached } from "../../utils";
 import { Button, Input, Label, Spinner } from "../../components/ui";
-import { useSetup } from "./SetupContext";
-import StepNav from "./StepNav";
+import { useSetup } from "../../context/SetupContext";
+import StepNav from "../../components/StepNav";
 
 const DIFFICULTIES: Difficulty[] = ["junior", "mid", "senior", "staff"];
 
 export default function ConfigStep() {
-  const { sessionId, session, setErr, refresh, resumeReady, jdReady, configDone, hasBlueprint } = useSetup();
+  const {
+    sessionId,
+    session,
+    setErr,
+    refresh,
+    resumeReady,
+    jdReady,
+    configDone,
+    hasBlueprint,
+  } = useSetup();
 
   const [difficulty, setDifficulty] = useState<Difficulty>("mid");
   const [targetPay, setTargetPay] = useState("");
@@ -39,7 +48,7 @@ export default function ConfigStep() {
     configInited.current = true;
     setTargetPay(session.target_pay ?? "");
     setRoleTitle(session.role_title ?? "");
-    setConfigDirty(!reached(parseStatus(session.status), "difficulty_set"));
+    setConfigDirty(!reached({ stage: session.stage, status: session.status }, "difficulty_set"));
   }, [session]);
 
   // Once the blueprint is ready, resolve the build button's loading state.
@@ -84,7 +93,9 @@ export default function ConfigStep() {
 
   return (
     <div>
-      <h2 className="text-base font-semibold text-slate-900">Difficulty, pay & role</h2>
+      <h2 className="text-base font-semibold text-slate-900">
+        Difficulty, pay & role
+      </h2>
       <div className="mt-4 space-y-4">
         <div>
           <Label>Difficulty</Label>
@@ -139,22 +150,33 @@ export default function ConfigStep() {
 
       {/* Build the interview — enabled once resume + JD + config are set. */}
       <div className="mt-6 border-t border-slate-100 pt-5">
-        <h3 className="text-sm font-semibold text-slate-900">Build the interview</h3>
+        <h3 className="text-sm font-semibold text-slate-900">
+          Build the interview
+        </h3>
         <p className="mt-1 text-sm text-slate-600">
           Generates a tailored question blueprint from your resume and the JD.
         </p>
         {!canBuild && (
           <p className="mt-2 text-sm text-slate-500">
-            {!configDone ? "Save your settings first." : "Finish steps 1–2 first."}
+            {!configDone
+              ? "Save your settings first."
+              : "Finish steps 1–2 first."}
           </p>
         )}
       </div>
 
       <StepNav canAdvance={configDone}>
-        <Button variant="secondary" onClick={() => onConfig()} disabled={configBusy || !configDirty}>
+        <Button
+          variant="secondary"
+          onClick={() => onConfig()}
+          disabled={configBusy || !configDirty}
+        >
           {configBusy ? <Spinner /> : configDone ? "Update" : "Save"}
         </Button>
-        <Button onClick={() => onBuild()} disabled={blueprintBusy || awaitingBuild || !canBuild}>
+        <Button
+          onClick={() => onBuild()}
+          disabled={blueprintBusy || awaitingBuild || !canBuild}
+        >
           {blueprintBusy || awaitingBuild ? (
             <>
               <Spinner /> Building…

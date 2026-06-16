@@ -8,7 +8,6 @@ import type {
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
 } from "react";
-// import { useSocketConnected } from "../lib/socket";
 
 export function cn(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(" ");
@@ -53,9 +52,12 @@ export function Modal({
 export function Shell({
   children,
   max = "max-w-2xl",
+  connected,
 }: {
   children: ReactNode;
   max?: string;
+  /** When provided, shows the live-link indicator in the header. */
+  connected?: boolean;
 }) {
   return (
     <div className="flex h-screen flex-col">
@@ -65,9 +67,11 @@ export function Shell({
           <span className="font-semibold tracking-tight text-slate-900">
             AI Interviewer
           </span>
-          <span className="ml-auto">
-            <ConnectionStatus />
-          </span>
+          {connected !== undefined && (
+            <span className="ml-auto">
+              <ConnectionStatus connected={connected} />
+            </span>
+          )}
         </div>
       </header>
       <div className="flex flex-1 flex-col overflow-y-auto">
@@ -90,8 +94,8 @@ export function Footer() {
 }
 
 // Live-link indicator — connected / disconnected, from the Socket.IO connect events.
-export function ConnectionStatus() {
-  const isConnected = true; // useSocketConnected();
+export function ConnectionStatus({ connected }: { connected: boolean }) {
+  const isConnected = connected;
   return (
     <span
       className={cn(

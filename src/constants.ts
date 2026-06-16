@@ -3,3 +3,25 @@ export const LOCAL_STORAGE = {
 };
 
 export type ROUTE_KEY = "setup" | "interview" | "report";
+
+// Static report placeholders — things the report design shows that the backend doesn't
+// produce yet (candidate name, percentile, confidence, onsite verdict, running journey).
+// Tagged "sample" in the UI until the backend supplies them.
+export const REPORT_PLACEHOLDER = {
+  candidateName: "Candidate",
+  roleTitle: "Senior Backend Engineer",
+  percentileLabel: "Top 15% of Backend Candidates",
+  onsiteVerdict: "Proceed to Onsite",
+  confidencePct: 82,
+  // The report only has a single `recommendations` string (shown in the hero), so the
+  // structured next-steps list is placeholder.
+  recommendations: [
+    { title: "Advance to onsite loop", body: "Focus on system design questions." },
+    { title: "Add a dedicated algorithms round", body: "Probe optimization depth with medium-hard problems." },
+  ],
+  // Running score over the call — not tracked yet.
+  journey: {
+    labels: ["00:03", "00:11", "00:18", "00:24", "00:31", "00:37", "00:43"],
+    scores: [70, 75, 79, 76, 68, 56, 59],
+  },
+};

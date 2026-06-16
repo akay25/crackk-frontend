@@ -6,9 +6,12 @@ import {
   useNavigate,
   useParams,
 } from "react-router-dom";
+import type { Socket } from "socket.io-client";
+
 import { getSession as getSessionFromAPI, joinCall } from "../../api/session";
 import type { Session } from "../../types/api";
-// import { parseStatus, reached, useSessionStatus, type SessionState } from "../../lib/socket";
+import type { SessionState } from "../../types";
+import { useLiveStatus } from "../../socket_io";
 import {
   Alert,
   Badge,
@@ -19,14 +22,17 @@ import {
   Spinner,
 } from "../../components/ui";
 import StepperHeader from "../../components/StepperHeader";
-import {
-  SETUP_STEPS,
-  SetupContext,
-  type SetupContextValue,
-} from "./SetupContext";
-import { statusLabel, statusTone } from "../../utils";
+import { SetupContext } from "../../context/SetupContext";
+import { SETUP_STEPS, SetupContextValue } from "../../types/SetupPage";
+import { reached, statusLabel, statusTone } from "../../utils";
 
-export default function SetupLayout() {
+export default function SetupLayout({
+  socket,
+  connected,
+}: {
+  socket: Socket | null;
+  connected: boolean;
+}) {
   const navigate = useNavigate();
   const location = useLocation();
   const { sessionId } = useParams();
@@ -46,17 +52,20 @@ export default function SetupLayout() {
     }
   }, [sessionId]);
 
-  // Live state over Socket.IO — no polling. Fall back to the session's status (from REST,
-  // a combined string parsed into { stage, status }) until the first event arrives.
-  const live = useSessionStatus(sessionId ?? null);
+  // Live state over the socket SessionGate handed us. Fall back to the session's
+  // stage/status (from REST) until the first UPDATE arrives.
+  const live = useLiveStatus(socket);
   const state: SessionState = live.stage
-    ? { stage: live.stage, status: live.status, reason: live.reason }
-    : { ...parseStatus(session?.status), reason: null };
+    ? live
+    : { stage: session?.stage ?? null, status: session?.status ?? null, reason: null };
 
-  // Initial load + re-sync of the richer session fields each time a live event arrives.
+  // Initial load + re-sync the richer session fields each time a live event arrives.
   useEffect(() => {
     refresh();
   }, [refresh]);
+  useEffect(() => {
+    if (live.stage) refresh();
+  }, [live.stage, live.status, refresh]);
 
   // Derived happy-path flags.
   const resumeReady = !reparsing && reached(state, "resume.ready");
@@ -174,7 +183,7 @@ export default function SetupLayout() {
 
   return (
     <SetupContext.Provider value={ctx}>
-      <Shell>
+      <Shell connected={connected}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
@@ -187,7 +196,7 @@ export default function SetupLayout() {
           {session && (
             <Badge tone={statusTone(session.status)}>
               <span className="size-1.5 rounded-full bg-current" />
-              {statusLabel(session.status)}
+              {statusLabel(session.stage, session.status)}
             </Badge>
           )}
         </div>

@@ -36,7 +36,12 @@ const getResumeProfile = async (id: string): Promise<ParsedProfile | null> => {
 const uploadResume = async (id: string, file: File): Promise<void> => {
   const form = new FormData();
   form.append("file", file);
-  await axios.post(`/sessions/${id}/resume`, form);
+  // Override the instance's default application/json content type. Otherwise axios
+  // serializes the FormData to JSON; setting multipart here makes axios send the raw
+  // FormData and lets the browser add the multipart boundary (else the API 422s).
+  await axios.post(`/sessions/${id}/resume`, form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
 };
 
 const setJob = async (id: string, input: JobInput): Promise<void> => {

@@ -1,9 +1,9 @@
-// Shared bottom row for each Setup step: Back / (step-specific action) / Next.
-// The step passes its primary action as children and whether Next may advance; the
-// Back/Next navigation is driven by the stepper position in SetupContext.
 import type { ReactNode } from "react";
-import { Button } from "../../components/ui";
-import { SETUP_STEPS, useSetup } from "./SetupContext";
+
+// Local imports
+import { Button } from "./ui";
+import { useSetup } from "../context/SetupContext";
+import { SETUP_STEPS } from "../types/SetupPage";
 
 export default function StepNav({
   canAdvance,
@@ -20,13 +20,20 @@ export default function StepNav({
 
   return (
     <div className="mt-6 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
-      <Button variant="secondary" onClick={() => goToIndex(currentIndex - 1)} disabled={isFirst}>
+      <Button
+        variant="secondary"
+        onClick={() => goToIndex(currentIndex - 1)}
+        disabled={isFirst}
+      >
         ← Back
       </Button>
       <div className="flex items-center gap-3">
         {children}
         {!isLast && (
-          <Button onClick={() => goToIndex(currentIndex + 1)} disabled={!canAdvance}>
+          <Button
+            onClick={() => goToIndex(currentIndex + 1)}
+            disabled={!canAdvance}
+          >
             Next →
           </Button>
         )}

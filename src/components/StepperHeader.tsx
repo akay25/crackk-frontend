@@ -3,7 +3,7 @@ import { Fragment } from "react/jsx-runtime";
 // Local imports
 import { cn } from "./ui";
 import CheckboxRound from "./CheckboxRound";
-import { SETUP_STEPS } from "../routes/setup/SetupContext";
+import { SETUP_STEPS } from "../types/SetupPage";
 
 /** Horizontal stepper: numbered/checked dots with connectors; click to jump back. */
 export default function StepperHeader({

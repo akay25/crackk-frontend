@@ -1,5 +1,4 @@
 import type { Socket } from "socket.io-client";
-import { SessionStage } from "./api";
 
 export type SessionGateChildProps = {
   socket: Socket | null;
@@ -14,8 +13,10 @@ export type SessionStatus =
   | "in_call"
   | "completed";
 
+// Live state as held in the UI: nullable so it can represent "no UPDATE / not loaded yet".
+// `stage`/`status` are kept as loose strings since they arrive over the socket.
 export interface SessionState {
-  stage: SessionStage;
-  status: SessionStatus;
+  stage: string | null;
+  status: string | null;
   reason: string | null; // human-readable note on some events
 }
