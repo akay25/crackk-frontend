@@ -113,6 +113,28 @@ export default function ResumeStep() {
       <h2 className="text-base font-semibold text-slate-900">
         Upload your resume
       </h2>
+
+      {hasResume && !pendingResume && (
+        <div className="mt-3">
+          {resumeFailed ? (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+              {session?.resume_is_technical === false ||
+              state.reason === "not_technical"
+                ? "That doesn't look like a technical resume. Please upload a technical resume to continue."
+                : "We couldn't read that resume. Please upload another file."}
+            </div>
+          ) : profile ? (
+            <ResumeProfilePreview profile={profile} />
+          ) : (
+            <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-sm text-slate-600">
+              <Spinner className="size-4 text-indigo-500" />
+              Reading your resume… we'll show you what we found here in a
+              moment.
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="mt-4">
         <label
           className={cn(
@@ -203,27 +225,6 @@ export default function ResumeStep() {
                 Preview is available for PDFs only — this file will be uploaded
                 as-is.
               </p>
-            )}
-          </div>
-        )}
-
-        {hasResume && !pendingResume && (
-          <div className="mt-3">
-            {resumeFailed ? (
-              <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
-                {session?.resume_is_technical === false ||
-                state.reason === "not_technical"
-                  ? "That doesn't look like a technical resume. Please upload a technical resume to continue."
-                  : "We couldn't read that resume. Please upload another file."}
-              </div>
-            ) : profile ? (
-              <ResumeProfilePreview profile={profile} />
-            ) : (
-              <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-sm text-slate-600">
-                <Spinner className="size-4 text-indigo-500" />
-                Reading your resume… we'll show you what we found here in a
-                moment.
-              </div>
             )}
           </div>
         )}
