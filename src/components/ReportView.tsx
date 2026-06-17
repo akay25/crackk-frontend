@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { CompetencyScore, Report as ReportData } from "../types/api";
 import { tone } from "../utils";
 import { REPORT_PLACEHOLDER } from "../constants";
+import { Button } from "./ui";
 import ScoreRing from "./ScoreRing";
 import JourneyChart from "./JourneyChart";
 
@@ -39,13 +40,22 @@ export default function ReportView({
   return (
     <div className="space-y-8">
       {/* 1. Header */}
-      <header className="px-1 sm:px-2">
-        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900">
-          Interview Report for {REPORT_PLACEHOLDER.candidateName}
-        </h1>
-        <p className="mt-2 text-base sm:text-lg text-slate-400 font-medium">
-          {role || REPORT_PLACEHOLDER.roleTitle} · {dateStr}
-        </p>
+      <header className="flex items-start justify-between gap-4 px-1 sm:px-2">
+        <div>
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900">
+            Interview Report for {REPORT_PLACEHOLDER.candidateName}
+          </h1>
+          <p className="mt-2 text-base sm:text-lg text-slate-400 font-medium">
+            {role || REPORT_PLACEHOLDER.roleTitle} · {dateStr}
+          </p>
+        </div>
+        <Button
+          variant="secondary"
+          onClick={() => window.print()}
+          className="no-print shrink-0"
+        >
+          Download PDF
+        </Button>
       </header>
 
       {/* 2. Hero — score + verdict */}

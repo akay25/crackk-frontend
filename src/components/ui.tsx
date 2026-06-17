@@ -61,7 +61,7 @@ export function Shell({
 }) {
   return (
     <div className="flex h-screen flex-col">
-      <header className="shrink-0 border-b border-slate-200/70 bg-white/70 backdrop-blur">
+      <header className="no-print shrink-0 border-b border-slate-200/70 bg-white/70 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center gap-2.5 px-5 py-3.5">
           <Logo />
           <span className="font-semibold tracking-tight text-slate-900">
@@ -87,7 +87,7 @@ export function Shell({
 /** Non-sticky page footer, shown across all screens. */
 export function Footer() {
   return (
-    <footer className="border-t border-slate-200/70 py-6 text-center text-sm text-slate-500">
+    <footer className="no-print border-t border-slate-200/70 py-6 text-center text-sm text-slate-500">
       Made after eating chicken rice
     </footer>
   );

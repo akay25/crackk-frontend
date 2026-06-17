@@ -36,3 +36,62 @@
     background-attachment: fixed;
   }
 }
+
+/* Print / "Save as PDF": drop the app chrome and let the report flow across pages. */
+@media print {
+  /* A4 with comfortable margins so nothing runs to the paper edge. */
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  /* The app lives in a fixed-height scroll container; release it so all content prints. */
+  html,
+  body,
+  .h-screen {
+    height: auto !important;
+  }
+  .overflow-y-auto {
+    overflow: visible !important;
+  }
+  body {
+    background: #fff !important;
+  }
+
+  /* Scale text + spacing down for paper (Tailwind sizes are rem-based, so this
+     shrinks everything proportionally to fit A4 without re-styling each element). */
+  html {
+    font-size: 11px;
+  }
+
+  /* Drop the report's outer padding — @page already provides the margin. */
+  main {
+    padding: 0 !important;
+  }
+
+  /* Keep each card/section whole instead of splitting across a page break. */
+  section,
+  article,
+  header {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  /* Don't strand a heading at the bottom of a page. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  /* Keep the score ring, banners, and badges' colors in the printout. */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
