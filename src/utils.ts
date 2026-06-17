@@ -9,12 +9,13 @@ export function getOrCreateUserId(): string {
   return id;
 }
 
-export function gateFor(stage: string, status: string | null): ROUTE_KEY {
-  // Map a (stage, status) pair to the single page the user belongs on:
-  //   - init / resume.* / jd.* / difficulty_set / blueprint.*  → setup only
-  //   - interview.ready / interview.in_call                    → interview only
-  //   - interview.completed / interview.failed / report.* / completed → report only
-  // The candidate can't sidestep this by editing the URL.
+export function gateFor(
+  stage: string,
+  status: string | null,
+  hasBlueprint = false,
+): ROUTE_KEY {
+  // Map the session's lifecycle to the single page the user belongs on. The candidate
+  // can't sidestep this by editing the URL.
 
   // Report zone: the report stage, the terminal "completed", or the interview having
   // finished/failed (report building, or no report possible).
@@ -26,17 +27,18 @@ export function gateFor(stage: string, status: string | null): ROUTE_KEY {
     return "report";
   }
 
-  // Interview zone: at the interview stage, ready to start or in a live call.
-  if (stage === "interview" && (status === "ready" || status === "in_call")) {
+  // Interview zone: already in the interview stage, OR a blueprint has been built and is
+  // ready to run. Keyed on the explicit `has_blueprint` flag so this stays in lock-step
+  // with SetupLayout's redirect (avoids a setup ↔ interview bounce loop).
+  if (
+    stage === "interview" ||
+    hasBlueprint ||
+    (stage === "blueprint" && status === "ready")
+  ) {
     return "interview";
   }
 
-  // Blueprint condition
-  if (stage === "blueprint" && status === "ready") {
-    return "interview";
-  }
-
-  // Everything else — init, resume.*, jd.*, difficulty_set, blueprint.* — is setup.
+  // Everything else — init, resume.*, jd.*, difficulty_set, blueprint.{pending,running} — is setup.
   return "setup";
 }
 
@@ -115,6 +117,7 @@ const STAGE_ORDER = [
   "report",
   "completed",
 ];
+
 const SUB_RANK: Record<string, number> = {
   pending: 0,
   running: 1,
@@ -130,7 +133,6 @@ function rank(stage: string | null, status: string | null): number {
   return i * 10 + (status ? (SUB_RANK[status] ?? 0) : 0);
 }
 
-/** True when `s` has reached or passed `target` (e.g. "resume.ready") on the happy path. */
 export function reached(
   s: StagePair | null | undefined,
   target: string,
@@ -140,10 +142,7 @@ export function reached(
   return rank(s.stage, s.status) >= rank(t.stage, t.status);
 }
 
-/** The stage that has failed (e.g. "resume" when status === "failed"), or null. */
 export function failedStage(s: StagePair | null | undefined): string | null {
-  console.log("this is state: %o", s);
   if (!s) return null;
-
   return s.status === "failed" ? s.stage : null;
 }

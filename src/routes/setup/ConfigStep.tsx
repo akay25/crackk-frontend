@@ -1,6 +1,3 @@
-// Setup step 3 — difficulty / pay / role, then "Build the interview". Save persists the
-// config (moves the session to difficulty_set); Build kicks off blueprint generation.
-// When the blueprint becomes ready, SetupLayout's global "join" modal takes over.
 import { useEffect, useRef, useState } from "react";
 import { buildBlueprint, setConfig } from "../../api/session";
 import type { ConfigInput, Role } from "../../types/api";
@@ -26,18 +23,10 @@ export default function ConfigStep() {
   const [targetPay, setTargetPay] = useState("");
   const [roleTitle, setRoleTitle] = useState<Role>("mid");
   const [configBusy, setConfigBusy] = useState(false);
-  // Save is enabled only when the form differs from what's saved. Goes false after a
-  // successful save, true on any field edit. Seeded once from the loaded session.
   const [configDirty, setConfigDirty] = useState(false);
   const configInited = useRef(false);
-
   const [blueprintBusy, setBlueprintBusy] = useState(false);
-  // True after the user kicks off a build this session, until the blueprint is ready —
-  // drives the build button's loading state (the modal itself is driven by hasBlueprint).
-  const [awaitingBuild, setAwaitingBuild] = useState(false);
 
-  // The backend rejects blueprint generation unless a resume AND a JD are ready; gate the
-  // button on all three steps being done.
   const canBuild = configDone && resumeReady && jdReady;
 
   // One-time: seed the config form from the loaded session (so editing one field doesn't
@@ -55,11 +44,6 @@ export default function ConfigStep() {
       ),
     );
   }, [session]);
-
-  // Once the blueprint is ready, resolve the build button's loading state.
-  useEffect(() => {
-    if (hasBlueprint && awaitingBuild) setAwaitingBuild(false);
-  }, [hasBlueprint, awaitingBuild]);
 
   async function onConfig(e?: React.FormEvent) {
     e?.preventDefault();
@@ -85,11 +69,10 @@ export default function ConfigStep() {
     e?.preventDefault();
     if (!sessionId) return;
     setErr(null);
-    setBlueprintBusy(true);
+
     try {
+      setBlueprintBusy(true);
       await buildBlueprint(sessionId);
-      setAwaitingBuild(true); // wait for blueprint→ready over the socket, then pop the join dialog
-      await refresh();
     } catch (e) {
       setErr(String(e));
     } finally {
@@ -167,11 +150,8 @@ export default function ConfigStep() {
         >
           {configBusy ? <Spinner /> : configDone ? "Update" : "Save"}
         </Button>
-        <Button
-          onClick={() => onBuild()}
-          disabled={blueprintBusy || awaitingBuild || !canBuild}
-        >
-          {blueprintBusy || awaitingBuild ? (
+        <Button onClick={() => onBuild()} disabled={blueprintBusy || !canBuild}>
+          {blueprintBusy ? (
             <>
               <Spinner /> Building…
             </>

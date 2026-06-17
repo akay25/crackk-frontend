@@ -43,24 +43,35 @@ export default function SetupLayout({
     }
   }, [sessionId]);
 
-  // Live state over the socket SessionGate handed us. Fall back to the session's
-  // stage/status (from REST) until the first UPDATE arrives.
+  // Live state over the socket SessionGate handed us, merged with the REST session.
+  // Use whichever is FURTHER ALONG the pipeline: otherwise a stale earlier event (e.g.
+  // resume.ready) shadows a more-advanced REST status (e.g. jd.ready), which left "Next"
+  // disabled after a JD success on the first try.
   const live = useLiveStatus(socket);
-  const state: SessionState = live.stage
+  const seedStage = session?.stage ?? null;
+  const seedStatus = session?.status ?? null;
+  const seedTarget = seedStage
+    ? seedStatus
+      ? `${seedStage}.${seedStatus}`
+      : seedStage
+    : "";
+  const liveAhead = !!live.stage && reached(live, seedTarget);
+  const state: SessionState = liveAhead
     ? live
-    : {
-        stage: session?.stage ?? null,
-        status: session?.status ?? null,
-        reason: null,
-      };
+    : { stage: seedStage, status: seedStatus, reason: live.reason };
 
   // Initial load + re-sync the richer session fields each time a live event arrives.
   useEffect(() => {
     refresh();
-  }, [refresh]);
+  }, []);
+
   useEffect(() => {
-    if (live.stage) refresh();
-  }, [live.stage, live.status, refresh]);
+    if (live.stage) {
+      if (live.stage === "blueprint" && live.status == "ready") {
+        window.location.href = `/${sessionId}/interview`;
+      } else refresh();
+    }
+  }, [live.stage, live.status]);
 
   // Derived happy-path flags.
   const resumeReady = !reparsing && reached(state, "resume.ready");
@@ -68,11 +79,6 @@ export default function SetupLayout({
   const configDone = reached(state, "difficulty_set");
   const hasBlueprint =
     (session?.has_blueprint ?? false) || reached(state, "blueprint.ready");
-
-  // If this current session has blueprint, then redirect to interview page
-  if (hasBlueprint) {
-    navigate(`/${sessionId}/interview/`);
-  }
 
   const doneFlags = [resumeReady, jdReady, configDone];
 

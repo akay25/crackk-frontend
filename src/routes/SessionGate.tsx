@@ -61,8 +61,8 @@ export default function SessionGate({
   if (!sessionId || notFound) return <NotFound />;
   if (loading || !session) return <SessionGateLoading />;
 
-  // Gate on the REST-seeded lifecycle (stage + bare sub-status).
-  const belongs = gateFor(session.stage, session.status);
+  // Gate on the REST-seeded lifecycle (stage + bare sub-status + the has_blueprint flag).
+  const belongs = gateFor(session.stage, session.status, session.has_blueprint);
   if (belongs !== route) {
     return <Navigate to={`/${sessionId}/${belongs}`} replace />;
   }

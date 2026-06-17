@@ -32,7 +32,12 @@ export function useLiveStatus(socket: Socket | null): SessionState {
   useEffect(() => {
     if (!socket) return;
     function onUpdate(m: UpdateEvent) {
-      setState({ stage: m.stage, status: m.status ?? null, reason: m.reason ?? null });
+      console.log("new update changes came: %o", m);
+      setState({
+        stage: m.stage,
+        status: m.status ?? null,
+        reason: m.reason ?? null,
+      });
     }
     socket.on("UPDATE", onUpdate);
     return () => {
