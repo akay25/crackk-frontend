@@ -109,7 +109,9 @@ export default function Interview() {
             Nice work. Your report is being generated.
           </p>
           <Button
-            onClick={() => navigate(`/${sessionId}/report`)}
+            onClick={() => {
+              window.location.href = `/${sessionId}/report`;
+            }}
             className="mt-6 px-6 py-3 text-base"
           >
             View my report →
