@@ -69,15 +69,13 @@ export default function ConfigStep() {
     e?.preventDefault();
     if (!sessionId) return;
     setErr(null);
-
+    setBlueprintBusy(true);
     try {
-      setBlueprintBusy(true);
       await buildBlueprint(sessionId);
     } catch (e) {
       setErr(String(e));
-    } finally {
-      setBlueprintBusy(false);
     }
+    // Not disabling buildBlueprint flag cause user will be redirected to another page
   }
 
   return (
