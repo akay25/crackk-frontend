@@ -54,7 +54,9 @@ const router = createBrowserRouter([
     path: "/:sessionId/report",
     element: (
       <SessionGate route="report">
-        {({ socket }) => <Report socket={socket} />}
+        {({ socket, connected }) => (
+          <Report socket={socket} connected={connected} />
+        )}
       </SessionGate>
     ),
   },

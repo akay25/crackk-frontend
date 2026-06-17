@@ -6,15 +6,22 @@ import { useParams } from "react-router-dom";
 import type { Socket } from "socket.io-client";
 import { getReport, getSession } from "../api/session";
 import type { Report as ReportData } from "../types/api";
-import { failedStage, reached } from "../utils";
+import { reached } from "../utils";
 import { useLiveStatus } from "../socket_io";
 import { Alert, Button, Card, Shell, Spinner } from "../components/ui";
 import ReportView from "../components/ReportView";
 
-export default function Report({ socket }: { socket: Socket | null }) {
+export default function Report({
+  socket,
+  connected,
+}: {
+  socket: Socket | null;
+  connected: boolean;
+}) {
   const { sessionId } = useParams();
 
   const [report, setReport] = useState<ReportData | null>(null);
+  const [reportFailedFlag, setReportFailedFlag] = useState(false);
   const [role, setRole] = useState<string | null>(null);
   const [pending, setPending] = useState(true); // report not produced yet (404)
   const [err, setErr] = useState<string | null>(null);
@@ -31,16 +38,18 @@ export default function Report({ socket }: { socket: Socket | null }) {
       }
       setErr(null);
     } catch (e) {
-      // e.g. the endpoint is still stubbed (501) before report_gen merges.
-      setErr(String(e));
+      let errorMessage = String(e);
+      try {
+        // @ts-ignore
+        errorMessage = e.response.data.detail;
+        setReportFailedFlag(true);
+      } catch (e) {}
+      setErr(errorMessage);
     }
   }, [sessionId]);
 
   // Live state over the socket SessionGate handed us — no polling.
   const live = useLiveStatus(socket);
-  // Report failed, OR the interview itself failed (no conversation → no report).
-  const interviewFailed = live.stage === "interview" && live.status === "failed";
-  const failed = failedStage(live) === "report" || interviewFailed;
 
   // Pull the role title for the header (the only real header field we have).
   useEffect(() => {
@@ -50,10 +59,6 @@ export default function Report({ socket }: { socket: Socket | null }) {
       .catch(() => {});
   }, [sessionId]);
 
-  // Try once on arrival (the report may already be done), then fetch when the report
-  // becomes available — report_gen emits "report.ready" over the socket; the terminal
-  // bare "completed" transition is API-driven and isn't pushed today, so we react to
-  // either.
   useEffect(() => {
     load();
   }, [load]);
@@ -61,31 +66,25 @@ export default function Report({ socket }: { socket: Socket | null }) {
     if (live.stage === "completed" || reached(live, "report.ready")) load();
   }, [live.stage, live.status, load]);
 
-  if (report && !failed) {
+  if (report && !reportFailedFlag) {
     return (
-      <Shell max="max-w-5xl">
+      <Shell max="max-w-5xl" connected={connected}>
         <ReportView report={report} role={role} />
       </Shell>
     );
   }
 
   return (
-    <Shell>
-      <h1 className="text-2xl font-bold tracking-tight text-slate-900">Interview Report</h1>
+    <Shell connected={connected}>
+      <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+        Interview Report
+      </h1>
       <p className="mt-1 font-mono text-xs text-slate-400">{sessionId}</p>
       <Card className="mt-5 text-center">
-        {failed ? (
-          <div className="text-left">
-            <Alert tone="rose">
-              {interviewFailed
-                ? "We couldn't run this interview — no conversation was captured, so there's no report to show."
-                : "Report generation failed. We couldn't produce a report for this interview."}
-            </Alert>
-          </div>
-        ) : err ? (
+        {reportFailedFlag ? (
           <div className="mb-4 text-left">
             <Alert tone="amber">
-              The report isn't available yet. This page keeps checking automatically.
+              Generation failed
               <br />
               <span className="text-xs opacity-70">{err}</span>
             </Alert>
@@ -94,12 +93,16 @@ export default function Report({ socket }: { socket: Socket | null }) {
           pending && (
             <div className="flex flex-col items-center py-6">
               <Spinner className="size-7 text-indigo-500" />
-              <p className="mt-3 font-medium text-slate-700">Generating your report…</p>
-              <p className="text-sm text-slate-500">This page updates automatically.</p>
+              <p className="mt-3 font-medium text-slate-700">
+                Generating your report…
+              </p>
+              <p className="text-sm text-slate-500">
+                This page updates automatically.
+              </p>
             </div>
           )
         )}
-        {!failed && (
+        {!reportFailedFlag && (
           <Button variant="secondary" onClick={load} className="mt-2">
             Check now
           </Button>
