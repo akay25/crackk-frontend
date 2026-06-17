@@ -7,8 +7,13 @@ import {
 } from "@livekit/components-react";
 import { Alert, Badge, Button, Spinner, cn } from "./ui";
 import Captions from "./Captions";
+import { endCall as endCallAPI } from "../api/session";
+import axios from "axios";
 
-const STATE_LABEL: Record<string, { label: string; tone: "slate" | "amber" | "green" | "indigo" }> = {
+const STATE_LABEL: Record<
+  string,
+  { label: string; tone: "slate" | "amber" | "green" | "indigo" }
+> = {
   connecting: { label: "Connecting", tone: "slate" },
   initializing: { label: "Warming up", tone: "slate" },
   listening: { label: "Listening", tone: "green" },
@@ -16,22 +21,43 @@ const STATE_LABEL: Record<string, { label: string; tone: "slate" | "amber" | "gr
   speaking: { label: "Speaking", tone: "indigo" },
 };
 
-export default function CallStage({ sessionId, err }: { sessionId?: string; err: string | null }) {
+export default function CallStage({
+  sessionId,
+  err,
+}: {
+  sessionId?: string;
+  err: string | null;
+}) {
   const room = useRoomContext();
   const { state, agent } = useVoiceAssistant();
   const { localParticipant, isMicrophoneEnabled } = useLocalParticipant();
+
   const meta = STATE_LABEL[state] ?? { label: state, tone: "slate" as const };
-  // The agent participant is undefined until the AI interviewer actually joins.
   const agentJoined = !!agent;
-  // Captions are opt-in; off by default. The window stays mounted (just hidden) so
-  // the transcript keeps accumulating and is all there when toggled back on.
+
+  // States
   const [showCaptions, setShowCaptions] = useState(false);
+  const [endCallAPILoading, setEndCallAPILoading] = useState(false);
+
+  const endCallFunction = async () => {
+    if (!sessionId) return;
+    setEndCallAPILoading(true);
+    try {
+      await endCallAPI(sessionId);
+      room.disconnect();
+      setEndCallAPILoading(false);
+    } catch (_) {
+      setEndCallAPILoading(false);
+    }
+  };
 
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Interview in progress</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Interview in progress
+          </h1>
           <p className="mt-1 font-mono text-xs text-slate-400">{sessionId}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -91,8 +117,19 @@ export default function CallStage({ sessionId, err }: { sessionId?: string; err:
             />
             Enable captions
           </label>
-          <Button variant="danger" onClick={() => room.disconnect()} className="px-5">
-            <svg viewBox="0 0 24 24" fill="none" className="size-4" stroke="currentColor" strokeWidth={2}>
+          <Button
+            variant="danger"
+            disabled={endCallAPILoading}
+            onClick={endCallFunction}
+            className="px-5"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              className="size-4"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
               <path d="M3 5a2 2 0 0 1 2-2h2l2 5-2 1a11 11 0 0 0 5 5l1-2 5 2v2a2 2 0 0 1-2 2A16 16 0 0 1 3 5Z" />
             </svg>
             End call

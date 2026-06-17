@@ -61,6 +61,11 @@ const joinCall = async (id: string): Promise<JoinResponse> => {
   return response.data;
 };
 
+const endCall = async (id: string): Promise<JoinResponse> => {
+  const response = await axios.post(`/sessions/${id}/end-call`);
+  return response.data;
+};
+
 const getReport = async (id: string): Promise<Report | null> => {
   try {
     const response = await axios.get(`/sessions/${id}/report`);
@@ -80,5 +85,6 @@ export {
   setConfig,
   buildBlueprint,
   joinCall,
+  endCall,
   getReport,
 };
