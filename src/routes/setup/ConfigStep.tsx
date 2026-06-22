@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { buildBlueprint, setConfig } from "../../api/session";
+import { setConfig } from "../../api/session";
 import type { ConfigInput, Role } from "../../types/api";
 import { reached } from "../../utils";
 import { Button, Input, Label, Spinner } from "../../components/ui";
@@ -9,25 +9,13 @@ import StepNav from "../../components/StepNav";
 const ROLES: Role[] = ["junior", "mid", "senior", "staff"];
 
 export default function ConfigStep() {
-  const {
-    sessionId,
-    session,
-    setErr,
-    refresh,
-    resumeReady,
-    jdReady,
-    configDone,
-    hasBlueprint,
-  } = useSetup();
+  const { sessionId, session, setErr, refresh, configDone } = useSetup();
 
   const [targetPay, setTargetPay] = useState("");
   const [roleTitle, setRoleTitle] = useState<Role>("mid");
   const [configBusy, setConfigBusy] = useState(false);
   const [configDirty, setConfigDirty] = useState(false);
   const configInited = useRef(false);
-  const [blueprintBusy, setBlueprintBusy] = useState(false);
-
-  const canBuild = configDone && resumeReady && jdReady;
 
   // One-time: seed the config form from the loaded session (so editing one field doesn't
   // wipe the others) and decide whether Save starts enabled.
@@ -63,19 +51,6 @@ export default function ConfigStep() {
     } finally {
       setConfigBusy(false);
     }
-  }
-
-  async function onBuild(e?: React.FormEvent) {
-    e?.preventDefault();
-    if (!sessionId) return;
-    setErr(null);
-    setBlueprintBusy(true);
-    try {
-      await buildBlueprint(sessionId);
-    } catch (e) {
-      setErr(String(e));
-    }
-    // Not disabling buildBlueprint flag cause user will be redirected to another page
   }
 
   return (
@@ -123,21 +98,12 @@ export default function ConfigStep() {
         </div>
       </div>
 
-      {/* Build the interview — enabled once resume + JD + config are set. */}
+      {/* Next checks resume × JD eligibility, then auto-builds the interview. */}
       <div className="mt-6 border-t border-slate-100 pt-5">
-        <h3 className="text-sm font-semibold text-slate-900">
-          Build the interview
-        </h3>
-        <p className="mt-1 text-sm text-slate-600">
-          Generates a tailored question blueprint from your resume and the JD.
+        <p className="text-sm text-slate-600">
+          Save your settings, then continue to check your eligibility — we score
+          your resume against the job before building the interview.
         </p>
-        {!canBuild && (
-          <p className="mt-2 text-sm text-slate-500">
-            {!configDone
-              ? "Save your settings first."
-              : "Finish steps 1–2 first."}
-          </p>
-        )}
       </div>
 
       <StepNav canAdvance={configDone}>
@@ -147,17 +113,6 @@ export default function ConfigStep() {
           disabled={configBusy || !configDirty}
         >
           {configBusy ? <Spinner /> : configDone ? "Update" : "Save"}
-        </Button>
-        <Button onClick={() => onBuild()} disabled={blueprintBusy || !canBuild}>
-          {blueprintBusy ? (
-            <>
-              <Spinner /> Building…
-            </>
-          ) : hasBlueprint ? (
-            "Rebuild blueprint"
-          ) : (
-            "Build interview"
-          )}
         </Button>
       </StepNav>
     </div>

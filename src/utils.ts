@@ -66,6 +66,9 @@ export const statusLabel = (stage: string | null, status: string | null) => {
       readableStage = "Role config";
       status = "";
       break;
+    case "match":
+      readableStage = "Eligibility";
+      break;
   }
   return [readableStage, status].filter(Boolean).join(" · ");
 };
@@ -112,6 +115,7 @@ const STAGE_ORDER = [
   "resume",
   "jd",
   "difficulty_set",
+  "match",
   "blueprint",
   "interview",
   "report",

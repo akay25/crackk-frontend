@@ -12,6 +12,8 @@ export interface Session {
   target_pay: string | null;
   role_title: string | null;
   has_resume: boolean;
+  // Resume × JD match score (0–100), null until the match stage runs.
+  match_score: number | null;
   has_blueprint: boolean;
 }
 
@@ -26,6 +28,7 @@ export type SessionStage =
   | "resume"
   | "jd"
   | "difficulty_set"
+  | "match"
   | "blueprint"
   | "interview"
   | "report"
@@ -65,6 +68,30 @@ export interface ParsedProfile {
   projects?: string[];
   gaps?: string[];
   parse_confidence?: "high" | "medium" | "low";
+}
+
+// ---- Resume × JD match (eligibility gate before the blueprint) ----
+
+export interface MatchDimension {
+  name: string; // e.g. "core_skills" — humanized for display
+  score: number; // 0–100
+  weight: number; // contribution to the overall score, as a percentage
+  rationale: string;
+}
+
+export interface MatchResult {
+  overall_score: number; // 0–100
+  dimensions: MatchDimension[];
+  summary: string;
+  verdict: "strong" | "moderate" | "weak" | null;
+  threshold: number; // pass cutoff — use this, never hardcode
+  eligible: boolean; // overall_score >= threshold
+}
+
+// 202 response from POST /sessions/:id/match.
+export interface MatchTriggerResponse {
+  status: string;
+  task_id: string;
 }
 
 export interface JoinResponse {

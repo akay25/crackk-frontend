@@ -4,6 +4,8 @@ import {
   CreateSessionResponse,
   JobInput,
   JoinResponse,
+  MatchResult,
+  MatchTriggerResponse,
   ParsedProfile,
   Report,
   Session,
@@ -56,6 +58,27 @@ const buildBlueprint = async (id: string): Promise<void> => {
   await axios.post(`/sessions/${id}/blueprint`);
 };
 
+// Trigger the resume × JD match (202 Accepted). Runs once per session; the backend
+// auto-builds the blueprint on a passing score. Callers handle 409 (already run / in
+// progress) and 400 (wrong stage) from the thrown AxiosError.
+const triggerMatch = async (id: string): Promise<MatchTriggerResponse> => {
+  const response = await axios.post(`/sessions/${id}/match`);
+  return response.data;
+};
+
+// Fetch the score + breakdown once the stage reaches match.ready or match.failed.
+// Returns null while the match hasn't produced a row yet (404). A 500 is the task
+// itself erroring (no score) — rethrown so the caller can offer a retry.
+const getMatch = async (id: string): Promise<MatchResult | null> => {
+  try {
+    const response = await axios.get(`/sessions/${id}/match`);
+    return response.data;
+  } catch (err: any) {
+    if (err.response?.status === 404) return null;
+    throw err;
+  }
+};
+
 const joinCall = async (id: string): Promise<JoinResponse> => {
   const response = await axios.post(`/sessions/${id}/join`);
   return response.data;
@@ -84,6 +107,8 @@ export {
   setJob,
   setConfig,
   buildBlueprint,
+  triggerMatch,
+  getMatch,
   joinCall,
   endCall,
   getReport,

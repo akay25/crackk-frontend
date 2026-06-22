@@ -1,7 +1,7 @@
 import { Session } from "./api";
 import { SessionState } from "./index";
 
-export type StepKey = "resume" | "jd" | "config";
+export type StepKey = "resume" | "jd" | "config" | "match";
 
 export interface SetupStep {
   key: StepKey;
@@ -12,7 +12,8 @@ export interface SetupStep {
 export const SETUP_STEPS: SetupStep[] = [
   { key: "resume", title: "Resume" },
   { key: "jd", title: "Job description" },
-  { key: "config", title: "Configure & build" },
+  { key: "config", title: "Configure" },
+  { key: "match", title: "Eligibility" },
 ];
 
 export interface SetupContextValue {
@@ -34,6 +35,8 @@ export interface SetupContextValue {
   resumeReady: boolean;
   jdReady: boolean;
   configDone: boolean;
+  // The resume × JD match passed (reached match.ready) — gates the final step's checkmark.
+  matchEligible: boolean;
   hasBlueprint: boolean;
   doneFlags: boolean[];
   /** Index of the first not-yet-done step (last step once everything is done). */

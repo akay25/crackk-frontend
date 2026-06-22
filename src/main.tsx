@@ -12,6 +12,7 @@ import SetupLayout from "./routes/setup/SetupLayout";
 import ResumeStep from "./routes/setup/ResumeStep";
 import JdStep from "./routes/setup/JdStep";
 import ConfigStep from "./routes/setup/ConfigStep";
+import MatchStep from "./routes/setup/MatchStep";
 import Interview from "./routes/Interview";
 import Report from "./routes/Report";
 import NotFound from "./routes/NotFound";
@@ -44,6 +45,7 @@ const router = createBrowserRouter([
       { path: "resume", element: <ResumeStep /> },
       { path: "jd", element: <JdStep /> },
       { path: "config", element: <ConfigStep /> },
+      { path: "match", element: <MatchStep /> },
     ],
   },
   {

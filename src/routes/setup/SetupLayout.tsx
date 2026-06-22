@@ -77,10 +77,11 @@ export default function SetupLayout({
   const resumeReady = !reparsing && reached(state, "resume.ready");
   const jdReady = reached(state, "jd.ready");
   const configDone = reached(state, "difficulty_set");
+  const matchEligible = reached(state, "match.ready");
   const hasBlueprint =
     (session?.has_blueprint ?? false) || reached(state, "blueprint.ready");
 
-  const doneFlags = [resumeReady, jdReady, configDone];
+  const doneFlags = [resumeReady, jdReady, configDone, matchEligible];
 
   // You can revisit any completed step and reach the first unfinished one, but not skip
   // ahead past a step you haven't done yet.
@@ -115,6 +116,7 @@ export default function SetupLayout({
       resumeReady,
       jdReady,
       configDone,
+      matchEligible,
       hasBlueprint,
       doneFlags,
       firstIncomplete,
@@ -134,6 +136,7 @@ export default function SetupLayout({
       resumeReady,
       jdReady,
       configDone,
+      matchEligible,
       hasBlueprint,
       firstIncomplete,
       currentIndex,
