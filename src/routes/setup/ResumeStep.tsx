@@ -13,6 +13,9 @@ import StepNav from "../../components/StepNav";
 // pdf.js is heavy — only pull it in when a file is actually staged for preview.
 const PdfPreview = lazy(() => import("../../components/PdfPreview"));
 
+// Only PDFs, and no larger than 10MB.
+const MAX_RESUME_BYTES = 10 * 1024 * 1024;
+
 export default function ResumeStep() {
   const {
     sessionId,
@@ -78,6 +81,15 @@ export default function ResumeStep() {
     const file = e.target.files?.[0];
     e.target.value = ""; // allow re-picking the same file later
     if (!file || resumeProcessing) return; // don't swap the resume mid-parse
+    // Only PDFs are accepted, and only up to 10MB.
+    if (file.type !== "application/pdf") {
+      setErr("Please upload a PDF file.");
+      return;
+    }
+    if (file.size > MAX_RESUME_BYTES) {
+      setErr("That file is too large. Please upload a PDF under 10MB.");
+      return;
+    }
     setErr(null);
     setProfile(null); // a new pick invalidates the previous parse preview
     setPreviewValid(true); // re-validated by the preview below
@@ -172,11 +184,11 @@ export default function ResumeStep() {
                 ? "Click to choose a different file"
                 : hasResume
                   ? "Click to replace your resume"
-                  : "Click to choose a PDF or DOCX"}
+                  : "Click to choose a PDF (max 10MB)"}
           </span>
           <input
             type="file"
-            accept=".pdf,.doc,.docx"
+            accept="application/pdf"
             onChange={onPickResume}
             disabled={resumeBusy || resumeProcessing}
             className="hidden"
