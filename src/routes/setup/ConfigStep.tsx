@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { setConfig } from "../../api/session";
 import type { ConfigInput, Role } from "../../types/api";
-import { reached } from "../../utils";
+import { failedStage, reached } from "../../utils";
 import { Button, Input, Label, Spinner } from "../../components/ui";
 import { useSetup } from "../../context/SetupContext";
 import StepNav from "../../components/StepNav";
@@ -9,7 +9,10 @@ import StepNav from "../../components/StepNav";
 const ROLES: Role[] = ["junior", "mid", "senior", "staff"];
 
 export default function ConfigStep() {
-  const { sessionId, session, setErr, refresh, configDone } = useSetup();
+  const { sessionId, session, state, setErr, refresh, configDone } = useSetup();
+
+  // A failed resume blocks saving config — there's nothing valid to configure against.
+  const resumeFailed = failedStage(state) === "resume";
 
   const [targetPay, setTargetPay] = useState("");
   const [roleTitle, setRoleTitle] = useState<Role>("mid");
@@ -35,7 +38,7 @@ export default function ConfigStep() {
 
   async function onConfig(e?: React.FormEvent) {
     e?.preventDefault();
-    if (!sessionId) return;
+    if (!sessionId || resumeFailed) return;
     setErr(null);
     setConfigBusy(true);
     const input: ConfigInput = {
@@ -107,13 +110,15 @@ export default function ConfigStep() {
       </div>
 
       <StepNav canAdvance={configDone}>
-        <Button
-          variant="secondary"
-          onClick={() => onConfig()}
-          disabled={configBusy || !configDirty}
-        >
-          {configBusy ? <Spinner /> : configDone ? "Update" : "Save"}
-        </Button>
+        {!resumeFailed && (
+          <Button
+            variant="secondary"
+            onClick={() => onConfig()}
+            disabled={configBusy || !configDirty || resumeFailed}
+          >
+            {configBusy ? <Spinner /> : configDone ? "Update" : "Save"}
+          </Button>
+        )}
       </StepNav>
     </div>
   );

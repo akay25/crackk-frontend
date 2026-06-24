@@ -45,6 +45,9 @@ export default function ResumeStep() {
   // the live status has caught up.
   const resumeProcessing =
     reparsing || (hasResume && !resumeReady && !resumeFailed);
+  // Once parsing has failed, lock the whole upload path (picker + dropzone + Upload
+  // button) — a failed resume is a dead end in this view, not a re-upload prompt.
+  const uploadDisabled = resumeProcessing || resumeFailed;
 
   // Fetch the parsed-resume preview exactly once, when the resume stage is ready.
   // Skip while reparsing — the "ready" status still refers to the previous resume.
@@ -80,7 +83,7 @@ export default function ResumeStep() {
   function onPickResume(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = ""; // allow re-picking the same file later
-    if (!file || resumeProcessing) return; // don't swap the resume mid-parse
+    if (!file || uploadDisabled) return; // don't swap mid-parse, or after a failure
     // Only PDFs are accepted, and only up to 10MB.
     if (file.type !== "application/pdf") {
       setErr("Please upload a PDF file.");
@@ -104,7 +107,7 @@ export default function ResumeStep() {
   );
 
   async function onUploadResume() {
-    if (!pendingResume || !sessionId || !previewValid) return;
+    if (!pendingResume || !sessionId || !previewValid || resumeFailed) return;
     setErr(null);
     setResumeBusy(true);
     try {
@@ -151,7 +154,7 @@ export default function ResumeStep() {
         <label
           className={cn(
             "flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-6 text-center transition",
-            resumeProcessing
+            uploadDisabled
               ? "cursor-not-allowed border-slate-200 bg-slate-100/60 opacity-70"
               : "cursor-pointer border-slate-300 bg-slate-50/50 hover:border-indigo-400 hover:bg-indigo-50/40",
           )}
@@ -180,17 +183,19 @@ export default function ResumeStep() {
           <span className="mt-2 text-sm font-medium text-slate-700">
             {resumeProcessing
               ? "Processing your resume… please wait"
-              : pendingResume
-                ? "Click to choose a different file"
-                : hasResume
-                  ? "Click to replace your resume"
-                  : "Click to choose a PDF (max 10MB)"}
+              : resumeFailed
+                ? "Resume upload is unavailable"
+                : pendingResume
+                  ? "Click to choose a different file"
+                  : hasResume
+                    ? "Click to replace your resume"
+                    : "Click to choose a PDF (max 10MB)"}
           </span>
           <input
             type="file"
             accept="application/pdf"
             onChange={onPickResume}
-            disabled={resumeBusy || resumeProcessing}
+            disabled={resumeBusy || uploadDisabled}
             className="hidden"
           />
         </label>
@@ -246,7 +251,7 @@ export default function ResumeStep() {
         {pendingResume && (
           <Button
             onClick={onUploadResume}
-            disabled={resumeBusy || !previewValid}
+            disabled={resumeBusy || !previewValid || resumeFailed}
           >
             {resumeBusy ? (
               <>
