@@ -87,7 +87,7 @@ export default function ConfigStep() {
             <Label>Target pay (optional)</Label>
             <Input
               type="text"
-              placeholder="$180k"
+              placeholder="₹20L"
               value={targetPay}
               onChange={(e) => {
                 setTargetPay(e.target.value);
