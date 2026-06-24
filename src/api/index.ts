@@ -1,4 +1,4 @@
-import axios, { AxiosError } from "axios";
+import axios from "axios";
 
 // Local imports
 const API_TIMEOUT = 30000;

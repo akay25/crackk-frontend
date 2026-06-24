@@ -8,7 +8,6 @@ import {
 import { Alert, Badge, Button, Spinner, cn } from "./ui";
 import Captions from "./Captions";
 import { endCall as endCallAPI } from "../api/session";
-import axios from "axios";
 
 const STATE_LABEL: Record<
   string,

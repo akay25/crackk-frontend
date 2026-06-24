@@ -2,7 +2,7 @@
 // the browser to the SFU room with @livekit/components-react, publish the mic, play
 // the agent's audio, and stream live captions. Route is token-guarded (magic token).
 import { useCallback, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import { LiveKitRoom, RoomAudioRenderer } from "@livekit/components-react";
 import { joinCall } from "../api/session";
 import type { JoinResponse } from "../types/api";
@@ -11,7 +11,6 @@ import CallStage from "../components/CallStage";
 
 export default function Interview() {
   const { sessionId } = useParams();
-  const navigate = useNavigate();
   const location = useLocation();
 
   // Setup hands us a freshly-minted connection via router state after it joins —
