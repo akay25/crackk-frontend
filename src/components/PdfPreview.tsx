@@ -5,11 +5,14 @@
 // invalid so the parent can block the upload.
 import { useEffect, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist";
-// Vite resolves the worker to a real URL; pdf.js needs it for off-main-thread parsing.
-import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+// Let Vite bundle the worker as its own chunk and instantiate it. Using `?worker`
+// (instead of `?url`) emits a `.js` chunk Vite controls and wires up the Worker for
+// us, so we avoid the `.mjs` module-worker path that breaks when a static host serves
+// `.mjs` with the wrong MIME type. pdf.js drives it through `workerPort`.
+import PdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?worker";
 import { Spinner } from "./ui";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+pdfjsLib.GlobalWorkerOptions.workerPort = new PdfWorker();
 
 export default function PdfPreview({
   file,
