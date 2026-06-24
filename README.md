@@ -1,4 +1,4 @@
-# AI Interviewer — Frontend
+# Crackk AI — Frontend
 
 A thin React + Vite single-page app for an AI-conducted technical interview.
 

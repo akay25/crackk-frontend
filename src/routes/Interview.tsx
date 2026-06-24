@@ -56,7 +56,7 @@ export default function Interview() {
             Ready to begin?
           </h1>
           <p className="mx-auto mt-2 max-w-sm text-slate-600">
-            You'll speak with an AI interviewer. Find a quiet spot — your
+            You'll speak with Crackk AI. Find a quiet spot — your
             browser will ask for microphone permission when you join.
           </p>
           {err && (

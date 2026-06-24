@@ -8,7 +8,7 @@ import { Alert, Button, Card, Footer, Spinner } from "../components/ui";
 
 const FEATURES = [
   { title: "Tailored to you", body: "Questions built from your resume and the exact job description." },
-  { title: "Real voice interview", body: "Speak naturally with an AI interviewer — live captions included." },
+  { title: "Real voice interview", body: "Speak naturally with Crackk AI — live captions included." },
   { title: "Evidence-based report", body: "Per-competency scores with verbatim quotes from your answers." },
 ];
 

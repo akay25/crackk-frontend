@@ -65,7 +65,7 @@ export function Shell({
         <div className="mx-auto flex max-w-5xl items-center gap-2.5 px-5 py-3.5">
           <Logo />
           <span className="font-semibold tracking-tight text-slate-900">
-            AI Interviewer
+            Crackk AI
           </span>
           {connected !== undefined && (
             <span className="ml-auto">
