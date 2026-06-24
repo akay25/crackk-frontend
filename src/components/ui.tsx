@@ -87,9 +87,14 @@ export function Shell({
 /** Non-sticky page footer, shown across all screens. */
 export function Footer() {
   return (
-    <footer className="no-print border-t border-slate-200/70 py-6 text-center text-sm text-slate-500">
-      Made after eating chicken rice
-    </footer>
+    <>
+      <footer className="no-print border-t border-slate-200/70 py-6 text-center text-sm text-slate-500">
+        Made after eating chicken rice
+      </footer>
+      <div className="no-print hidden">
+        My girlfriend sponsored the domain for this project 😁
+      </div>
+    </>
   );
 }
 
