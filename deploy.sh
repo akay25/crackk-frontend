@@ -6,6 +6,9 @@ USER="root"
 REMOTE_PATH="/var/www/crackk.ai"
 BUILD_DIR="dist"
 
+echo "Clearing old build"
+rm -rf dist
+
 echo "Building..."
 npm install
 npm run build
