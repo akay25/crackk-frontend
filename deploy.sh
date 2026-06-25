@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-SERVER="bayleaf"
+SERVER="heracross"
 USER="root"
 REMOTE_PATH="/var/www/crackk.ai"
 BUILD_DIR="dist"
