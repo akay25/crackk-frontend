@@ -4,6 +4,7 @@ import {
   createBrowserRouter,
   Navigate,
   RouterProvider,
+  useParams,
 } from "react-router-dom";
 
 import "./index.css";
@@ -21,6 +22,14 @@ import { getOrCreateUserId } from "./utils";
 
 // Generate + persist the anonymous user id on first load.
 getOrCreateUserId();
+
+// Any unmatched path under a session (bare `/:sessionId` or `/:sessionId/<garbage>`)
+// lands on setup rather than a 404. SessionGate then validates the id and shows its
+// own not-found screen if the session is bogus.
+function SessionFallback() {
+  const { sessionId } = useParams();
+  return <Navigate to={`/${sessionId}/setup`} replace />;
+}
 
 // No auth guard — the session_id in the path is the capability. SessionGate enforces
 // the lifecycle from the live combined status: pre-interview stages -> setup,
@@ -62,7 +71,12 @@ const router = createBrowserRouter([
       </SessionGate>
     ),
   },
-  // Catch-all — any unmatched URL renders the 404 page.
+  // Session-scoped fallbacks: a bare session id, or any unmatched sub-path under a
+  // session, redirects to that session's setup. Static segments (setup/interview/report)
+  // outrank these dynamic routes, so valid URLs are unaffected.
+  { path: "/:sessionId", element: <SessionFallback /> },
+  { path: "/:sessionId/*", element: <SessionFallback /> },
+  // Catch-all — any remaining unmatched URL (e.g. root-level junk) renders the 404 page.
   { path: "*", element: <NotFound /> },
 ]);
 
