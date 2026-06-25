@@ -8,6 +8,7 @@ import { joinCall } from "../api/session";
 import type { JoinResponse } from "../types/api";
 import { Alert, Button, Card, Shell, Spinner } from "../components/ui";
 import CallStage from "../components/CallStage";
+import { resolveLiveKitUrl } from "../lib/livekit";
 
 export default function Interview() {
   const { sessionId } = useParams();
@@ -122,7 +123,7 @@ export default function Interview() {
 
   return (
     <LiveKitRoom
-      serverUrl={conn.livekit_url}
+      serverUrl={resolveLiveKitUrl(conn.livekit_url)}
       token={conn.token}
       connect
       audio
