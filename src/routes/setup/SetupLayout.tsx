@@ -65,12 +65,11 @@ export default function SetupLayout({
     refresh();
   }, []);
 
+  // Re-sync the richer REST session whenever a live event arrives. We intentionally do NOT
+  // auto-redirect on blueprint.ready — the candidate clicks "Continue to interview" from the
+  // match step so they can review their resume score first.
   useEffect(() => {
-    if (live.stage) {
-      if (live.stage === "blueprint" && live.status == "ready") {
-        window.location.href = `/${sessionId}/interview`;
-      } else refresh();
-    }
+    if (live.stage) refresh();
   }, [live.stage, live.status]);
 
   // Derived happy-path flags.

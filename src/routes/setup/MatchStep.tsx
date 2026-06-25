@@ -1,8 +1,8 @@
 // Setup step 4 — resume × JD eligibility. Auto-triggers POST /sessions/:id/match once the
 // config is saved, then drives its UI off the live match.* status:
 //   match.pending / match.running → "Evaluating…"
-//   match.ready                   → GET /match → score card; blueprint auto-builds, then
-//                                   SetupLayout redirects to the call on blueprint.ready
+//   match.ready                   → GET /match → score card; blueprint auto-builds, then the
+//                                   candidate clicks "Continue to interview" on blueprint.ready
 //   match.failed                  → GET /match:
 //                                     200 (eligible:false) → terminal rejection (no retry)
 //                                     500                  → task error → offer Retry
@@ -97,13 +97,17 @@ export default function MatchStep() {
     );
   }
 
-  // Passed — show the score; the blueprint builds, then SetupLayout redirects to the call.
+  // Passed — show the score; the blueprint builds, then the candidate clicks
+  // "Continue to interview" once it's ready (no auto-redirect, so they can review the score).
   if (passed && result) {
     return (
       <MatchResultCard
         result={result}
         eligible
         building={buildingBlueprint}
+        onContinue={() => {
+          window.location.href = `/${sessionId}/interview`;
+        }}
       />
     );
   }

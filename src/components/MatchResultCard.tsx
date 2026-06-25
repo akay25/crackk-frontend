@@ -1,11 +1,12 @@
 // Renders the resume × JD match outcome: overall score ring, per-dimension breakdown
 // (score bar + weight + rationale), summary and verdict. The same card backs both the
 // eligible ("you passed, building your interview") and the terminal-rejection states —
-// the caller picks the framing via `eligible`, an optional rejection `reason`, and the
-// `building` flag (shown while the blueprint auto-builds before the redirect to the call).
+// the caller picks the framing via `eligible`, an optional rejection `reason`, the
+// `building` flag (shown while the blueprint builds) and `onContinue` (the
+// "Continue to interview" action, available once the blueprint is ready).
 import { tone } from "../utils";
 import ScoreRing from "./ScoreRing";
-import { Alert, Badge, Spinner, cn } from "./ui";
+import { Alert, Badge, Button, Spinner, cn } from "./ui";
 import type { MatchResult } from "../types/api";
 
 const VERDICT_TONE = {
@@ -25,11 +26,13 @@ export default function MatchResultCard({
   eligible,
   reason,
   building = false,
+  onContinue,
 }: {
   result: MatchResult;
   eligible: boolean;
   reason?: string | null;
   building?: boolean;
+  onContinue?: () => void;
 }) {
   return (
     <div>
@@ -100,8 +103,19 @@ export default function MatchResultCard({
       {eligible && building && (
         <div className="mt-6 flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-sm text-slate-600">
           <Spinner className="size-4 text-indigo-500" />
-          Building your tailored interview… you'll be taken to the call
-          automatically.
+          Building your tailored interview… this only takes a moment.
+        </div>
+      )}
+
+      {eligible && !building && onContinue && (
+        <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-slate-600">
+            Your interview is ready. Review your score above, then continue when
+            you're ready.
+          </p>
+          <Button onClick={onContinue} className="shrink-0">
+            Continue to interview
+          </Button>
         </div>
       )}
     </div>
