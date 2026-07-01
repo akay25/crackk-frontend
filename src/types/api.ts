@@ -94,10 +94,16 @@ export interface MatchTriggerResponse {
   task_id: string;
 }
 
+// The browser opens this WebSocket directly against the self-hosted voice agent
+// (backend agent/server.py). The session_id in the path is the capability.
 export interface JoinResponse {
-  livekit_url: string;
-  token: string;
-  room: string;
+  ws_url: string;
+  session_id: string;
+}
+
+export interface EndCallResponse {
+  status: string;
+  signalled: boolean;
 }
 
 export interface CompetencyScore {

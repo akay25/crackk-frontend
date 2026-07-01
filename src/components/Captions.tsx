@@ -1,29 +1,15 @@
 import { useEffect, useRef } from "react";
-import { useTranscriptions } from "@livekit/components-react";
 import { Card } from "./ui";
+import type { Caption } from "../lib/voiceAgent";
 
-export default function Captions({ localIdentity }: { localIdentity: string }) {
-  const transcriptions = useTranscriptions();
+export default function Captions({ captions }: { captions: Caption[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Keep the latest caption in view as the transcript grows.
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [transcriptions]);
-
-  // Show the interviewer's words verbatim; collapse the candidate's turns into a
-  // single "speaking" placeholder (we don't surface what they say).
-  const items: { isYou: boolean; text: string }[] = [];
-  for (const seg of transcriptions) {
-    const isYou = seg.participantInfo.identity === localIdentity;
-    if (isYou) {
-      if (items.length && items[items.length - 1].isYou) continue;
-      items.push({ isYou: true, text: "" });
-    } else {
-      items.push({ isYou: false, text: seg.text });
-    }
-  }
+  }, [captions]);
 
   return (
     <Card className="mt-5 p-0">
@@ -35,17 +21,15 @@ export default function Captions({ localIdentity }: { localIdentity: string }) {
         <span className="text-sm font-semibold text-slate-700">Live captions</span>
       </div>
       <div ref={scrollRef} className="h-[22rem] space-y-3 overflow-y-auto px-5 py-4">
-        {items.length === 0 ? (
+        {captions.length === 0 ? (
           <p className="text-sm text-slate-400">The interviewer's captions will appear here…</p>
         ) : (
-          items.map((item, i) =>
-            item.isYou ? (
-              // We don't show what the candidate says — just a "speaking" indicator.
+          captions.map((item, i) =>
+            item.speaker === "candidate" ? (
               <div key={i} className="flex justify-end">
-                <div className="flex items-center gap-1 rounded-2xl rounded-br-sm bg-slate-100 px-3.5 py-3">
-                  <span className="size-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.3s]" />
-                  <span className="size-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.15s]" />
-                  <span className="size-1.5 animate-bounce rounded-full bg-slate-400" />
+                <div className="max-w-[80%] rounded-2xl rounded-br-sm bg-indigo-50 px-3.5 py-2 text-sm text-slate-700">
+                  <span className="mb-0.5 block text-[11px] font-semibold text-indigo-400">You</span>
+                  {item.text}
                 </div>
               </div>
             ) : (

@@ -2,6 +2,7 @@ import axios from "./index";
 import {
   ConfigInput,
   CreateSessionResponse,
+  EndCallResponse,
   JobInput,
   JoinResponse,
   MatchResult,
@@ -84,7 +85,7 @@ const joinCall = async (id: string): Promise<JoinResponse> => {
   return response.data;
 };
 
-const endCall = async (id: string): Promise<JoinResponse> => {
+const endCall = async (id: string): Promise<EndCallResponse> => {
   const response = await axios.post(`/sessions/${id}/end-call`);
   return response.data;
 };

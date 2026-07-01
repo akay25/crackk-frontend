@@ -1,54 +1,46 @@
 import { useState } from "react";
-import {
-  VoiceAssistantControlBar,
-  useLocalParticipant,
-  useRoomContext,
-  useVoiceAssistant,
-} from "@livekit/components-react";
 import { Alert, Badge, Button, Spinner, cn } from "./ui";
 import Captions from "./Captions";
-import { endCall as endCallAPI } from "../api/session";
+import MicMeter from "./MicMeter";
+import type { CallPhase, Caption } from "../lib/voiceAgent";
 
 const STATE_LABEL: Record<
-  string,
-  { label: string; tone: "slate" | "amber" | "green" | "indigo" }
+  CallPhase,
+  { label: string; tone: "slate" | "amber" | "green" | "indigo" | "rose" }
 > = {
   connecting: { label: "Connecting", tone: "slate" },
-  initializing: { label: "Warming up", tone: "slate" },
   listening: { label: "Listening", tone: "green" },
   thinking: { label: "Thinking", tone: "amber" },
   speaking: { label: "Speaking", tone: "indigo" },
+  ended: { label: "Ended", tone: "slate" },
+  error: { label: "Error", tone: "rose" },
 };
 
 export default function CallStage({
   sessionId,
+  phase,
+  captions,
+  analyser,
+  muted,
+  onToggleMute,
+  ending,
+  onEnd,
   err,
 }: {
   sessionId?: string;
+  phase: CallPhase;
+  captions: Caption[];
+  analyser: AnalyserNode | null;
+  muted: boolean;
+  onToggleMute: () => void;
+  ending: boolean;
+  onEnd: () => void;
   err: string | null;
 }) {
-  const room = useRoomContext();
-  const { state, agent } = useVoiceAssistant();
-  const { localParticipant, isMicrophoneEnabled } = useLocalParticipant();
+  const meta = STATE_LABEL[phase] ?? { label: phase, tone: "slate" as const };
+  const live = phase !== "connecting" && phase !== "ended" && phase !== "error";
 
-  const meta = STATE_LABEL[state] ?? { label: state, tone: "slate" as const };
-  const agentJoined = !!agent;
-
-  // States
   const [showCaptions, setShowCaptions] = useState(false);
-  const [endCallAPILoading, setEndCallAPILoading] = useState(false);
-
-  const endCallFunction = async () => {
-    if (!sessionId) return;
-    setEndCallAPILoading(true);
-    try {
-      await endCallAPI(sessionId);
-      room.disconnect();
-      setEndCallAPILoading(false);
-    } catch (_) {
-      setEndCallAPILoading(false);
-    }
-  };
 
   return (
     <div>
@@ -64,9 +56,7 @@ export default function CallStage({
             <span className="size-1.5 animate-pulse rounded-full bg-current" />
             Interviewer · {meta.label}
           </Badge>
-          <Badge tone={isMicrophoneEnabled ? "green" : "rose"}>
-            Mic {isMicrophoneEnabled ? "on" : "off"}
-          </Badge>
+          <Badge tone={live ? "green" : "slate"}>Mic {live ? "on" : "off"}</Badge>
         </div>
       </div>
 
@@ -77,7 +67,7 @@ export default function CallStage({
       )}
 
       <div className={showCaptions ? "" : "hidden"}>
-        <Captions localIdentity={localParticipant.identity} />
+        <Captions captions={captions} />
       </div>
 
       {!showCaptions && (
@@ -85,41 +75,69 @@ export default function CallStage({
           <div
             className={cn(
               "grid size-44 place-items-center rounded-2xl shadow-sm transition",
-              agentJoined
+              live
                 ? "bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-indigo-500/30"
                 : "bg-slate-200 text-slate-400",
+              phase === "speaking" && "animate-pulse",
             )}
           >
             <span className="text-5xl font-bold tracking-tight">AI</span>
           </div>
-          {!agentJoined && (
-            <p className="flex items-center gap-2 text-sm text-slate-500">
-              <Spinner className="size-4 text-slate-400" />
-              Waiting for the interviewer to join…
-            </p>
-          )}
+          <p className="flex items-center gap-2 text-sm text-slate-500">
+            {phase === "connecting" && (
+              <>
+                <Spinner className="size-4 text-slate-400" />
+                Connecting to the interviewer…
+              </>
+            )}
+            {phase === "listening" && "Listening — go ahead and speak."}
+            {phase === "thinking" && "Thinking…"}
+            {phase === "speaking" && "Interviewer is speaking…"}
+          </p>
         </div>
       )}
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="lk-controls-wrap [&_.lk-button]:!rounded-xl">
-          {/* Mic mute/unmute + audio device picker from LiveKit. */}
-          <VoiceAssistantControlBar controls={{ leave: false }} />
-        </div>
-        <div className="flex items-center gap-4">
-          <label className="flex cursor-pointer select-none items-center gap-2 text-sm font-medium text-slate-600">
-            <input
-              type="checkbox"
-              checked={showCaptions}
-              onChange={(e) => setShowCaptions(e.target.checked)}
-              className="size-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-            />
-            Enable captions
-          </label>
+      {/* Live mic level — shows whether the candidate is speaking. */}
+      <div className="mt-6 flex justify-center">
+        <MicMeter analyser={analyser} phase={phase} muted={muted} />
+      </div>
+
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+        <label className="flex cursor-pointer select-none items-center gap-2 text-sm font-medium text-slate-600">
+          <input
+            type="checkbox"
+            checked={showCaptions}
+            onChange={(e) => setShowCaptions(e.target.checked)}
+            className="size-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+          />
+          Enable captions
+        </label>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="secondary"
+            onClick={onToggleMute}
+            disabled={phase === "ended"}
+            aria-pressed={muted}
+            className={cn("px-4", muted && "!ring-rose-300 !text-rose-600")}
+          >
+            {muted ? (
+              <svg viewBox="0 0 24 24" fill="none" className="size-4" stroke="currentColor" strokeWidth={1.8}>
+                <path d="M12 3a3 3 0 0 0-3 3v5m0 0a3 3 0 0 0 5.1 2.1M15 9V6a3 3 0 0 0-3-3" strokeLinecap="round" />
+                <path d="M5 11a7 7 0 0 0 10.5 6.06M12 18v3M9 21h6" strokeLinecap="round" />
+                <path d="m4 4 16 16" strokeLinecap="round" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" className="size-4" stroke="currentColor" strokeWidth={1.8}>
+                <path d="M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z" />
+                <path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6" strokeLinecap="round" />
+              </svg>
+            )}
+            {muted ? "Unmute" : "Mute"}
+          </Button>
           <Button
             variant="danger"
-            disabled={endCallAPILoading}
-            onClick={endCallFunction}
+            disabled={ending || phase === "ended"}
+            onClick={onEnd}
             className="px-5"
           >
             <svg
@@ -135,6 +153,14 @@ export default function CallStage({
           </Button>
         </div>
       </div>
+
+      {/* Reload/leave warning — the call lives in this tab; leaving ends it. */}
+      <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs text-amber-600">
+        <svg viewBox="0 0 24 24" fill="none" className="size-3.5" stroke="currentColor" strokeWidth={2}>
+          <path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        Don't reload or leave this page — it will end the interview.
+      </p>
     </div>
   );
 }
