@@ -8,7 +8,11 @@ import { joinCall, endCall as endCallAPI } from "../api/session";
 import type { JoinResponse } from "../types/api";
 import { Alert, Button, Card, Shell, Spinner } from "../components/ui";
 import CallStage from "../components/CallStage";
-import { VoiceAgentClient, type CallPhase, type Caption } from "../lib/voiceAgent";
+import {
+  VoiceAgentClient,
+  type CallPhase,
+  type Caption,
+} from "../lib/voiceAgent";
 
 type Screen = "idle" | "live" | "ended";
 
@@ -25,7 +29,7 @@ export default function Interview() {
   const [phase, setPhase] = useState<CallPhase>("connecting");
   const [captions, setCaptions] = useState<Caption[]>([]);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
-  const [muted, setMuted] = useState(false);
+  const [muted, setMuted] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
   const [ending, setEnding] = useState(false);
@@ -54,7 +58,7 @@ export default function Interview() {
   const begin = useCallback(async () => {
     if (!sessionId) return;
     setErr(null);
-    setMuted(false);
+    setMuted(true);
     setJoining(true);
     try {
       const conn = handoff ?? (await joinCall(sessionId));
@@ -70,6 +74,7 @@ export default function Interview() {
       });
       clientRef.current = client;
       await client.start();
+      client.setMuted(true);
       setScreen("live");
     } catch (e: unknown) {
       const name = (e as { name?: string })?.name;
@@ -123,15 +128,26 @@ export default function Interview() {
             Ready to begin?
           </h1>
           <p className="mx-auto mt-2 max-w-sm text-slate-600">
-            You'll speak with Crackk AI. Find a quiet spot — your browser will ask
-            for microphone permission when you join. Speak naturally; pause when
-            you're done and the interviewer will respond.
+            You'll speak with Crackk AI. Find a quiet spot — your browser will
+            ask for microphone permission when you join. Speak naturally; pause
+            when you're done and the interviewer will respond.
           </p>
           <p className="mx-auto mt-3 flex max-w-sm items-center justify-center gap-1.5 text-sm text-amber-600">
-            <svg viewBox="0 0 24 24" fill="none" className="size-4 shrink-0" stroke="currentColor" strokeWidth={2}>
-              <path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" strokeLinecap="round" strokeLinejoin="round" />
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              className="size-4 shrink-0"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
-            Stay on this tab — reloading or leaving during the interview will end it.
+            Stay on this tab — reloading or leaving during the interview will
+            end it.
           </p>
           {err && (
             <div className="mt-5 text-left">

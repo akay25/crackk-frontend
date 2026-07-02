@@ -40,7 +40,7 @@ export default function CallStage({
   const meta = STATE_LABEL[phase] ?? { label: phase, tone: "slate" as const };
   const live = phase !== "connecting" && phase !== "ended" && phase !== "error";
 
-  const [showCaptions, setShowCaptions] = useState(false);
+  const [showCaptions, setShowCaptions] = useState(true);
 
   return (
     <div>
@@ -56,7 +56,9 @@ export default function CallStage({
             <span className="size-1.5 animate-pulse rounded-full bg-current" />
             Interviewer · {meta.label}
           </Badge>
-          <Badge tone={live ? "green" : "slate"}>Mic {live ? "on" : "off"}</Badge>
+          <Badge tone={live ? "green" : "slate"}>
+            Mic {live ? "on" : "off"}
+          </Badge>
         </div>
       </div>
 
@@ -121,15 +123,36 @@ export default function CallStage({
             className={cn("px-4", muted && "!ring-rose-300 !text-rose-600")}
           >
             {muted ? (
-              <svg viewBox="0 0 24 24" fill="none" className="size-4" stroke="currentColor" strokeWidth={1.8}>
-                <path d="M12 3a3 3 0 0 0-3 3v5m0 0a3 3 0 0 0 5.1 2.1M15 9V6a3 3 0 0 0-3-3" strokeLinecap="round" />
-                <path d="M5 11a7 7 0 0 0 10.5 6.06M12 18v3M9 21h6" strokeLinecap="round" />
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                className="size-4"
+                stroke="currentColor"
+                strokeWidth={1.8}
+              >
+                <path
+                  d="M12 3a3 3 0 0 0-3 3v5m0 0a3 3 0 0 0 5.1 2.1M15 9V6a3 3 0 0 0-3-3"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M5 11a7 7 0 0 0 10.5 6.06M12 18v3M9 21h6"
+                  strokeLinecap="round"
+                />
                 <path d="m4 4 16 16" strokeLinecap="round" />
               </svg>
             ) : (
-              <svg viewBox="0 0 24 24" fill="none" className="size-4" stroke="currentColor" strokeWidth={1.8}>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                className="size-4"
+                stroke="currentColor"
+                strokeWidth={1.8}
+              >
                 <path d="M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z" />
-                <path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6" strokeLinecap="round" />
+                <path
+                  d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"
+                  strokeLinecap="round"
+                />
               </svg>
             )}
             {muted ? "Unmute" : "Mute"}
@@ -156,8 +179,18 @@ export default function CallStage({
 
       {/* Reload/leave warning — the call lives in this tab; leaving ends it. */}
       <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs text-amber-600">
-        <svg viewBox="0 0 24 24" fill="none" className="size-3.5" stroke="currentColor" strokeWidth={2}>
-          <path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" strokeLinecap="round" strokeLinejoin="round" />
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          className="size-3.5"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path
+            d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
         Don't reload or leave this page — it will end the interview.
       </p>
