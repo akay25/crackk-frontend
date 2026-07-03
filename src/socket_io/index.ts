@@ -14,15 +14,22 @@ export const connectToWSSocket = (sessionId: string): Socket => {
   });
 };
 
-const EMPTY: SessionState = { stage: null, status: null, reason: null };
+const EMPTY: SessionState = {
+  stage: null,
+  status: null,
+  reason: null,
+  session_status: null,
+};
 
-// Server → client `UPDATE` payload: { session_id, stage, status, reason } — stage and
-// status are SEPARATE fields (the event's native shape), not a combined string.
+// Server → client `UPDATE` payload: { session_id, stage, status, reason, session_status }
+// — stage and status are SEPARATE fields (the event's native shape), not a combined
+// string. `session_status` is the overall session status ("failed" is terminal).
 interface UpdateEvent {
   session_id?: string;
   stage: string;
   status?: string | null;
   reason?: string | null;
+  session_status?: string | null;
 }
 
 /** Subscribe to a socket's live session status. Returns the latest UPDATE payload. */
@@ -36,6 +43,7 @@ export function useLiveStatus(socket: Socket | null): SessionState {
         stage: m.stage,
         status: m.status ?? null,
         reason: m.reason ?? null,
+        session_status: m.session_status ?? null,
       });
     }
     socket.on("UPDATE", onUpdate);

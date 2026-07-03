@@ -58,7 +58,20 @@ export default function SetupLayout({
   const liveAhead = !!live.stage && reached(live, seedTarget);
   const state: SessionState = liveAhead
     ? live
-    : { stage: seedStage, status: seedStatus, reason: live.reason };
+    : {
+        stage: seedStage,
+        status: seedStatus,
+        reason: live.reason,
+        session_status: session?.session_status ?? live.session_status ?? null,
+      };
+
+  // Session-level terminal failure (e.g. the conflict-of-interest gate). Read straight
+  // from the REST session and the raw live event — NOT the merged `state`, whose
+  // stage-rank merge can shadow a `failed` behind a `ready` sub-status.
+  const sessionFailed =
+    session?.session_status === "failed" || live.session_status === "failed";
+  const failedReason =
+    session?.failed_reason ?? live.reason ?? "This session can't continue.";
 
   // Initial load + re-sync the richer session fields each time a live event arrives.
   useEffect(() => {
@@ -157,6 +170,27 @@ export default function SetupLayout({
         <Button className="mt-4" onClick={() => navigate("/")}>
           Go to home
         </Button>
+      </Shell>
+    );
+  }
+
+  // Terminal, session-level failure (e.g. blocked by the conflict-of-interest gate):
+  // the session can't advance, so replace the stepper with a clear stop message and a
+  // way to start over. Takes precedence over the stepper/ahead-jump logic below.
+  if (sessionFailed) {
+    return (
+      <Shell connected={connected}>
+        <Card className="mx-auto max-w-xl text-center">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            You can't continue with this interview
+          </h1>
+          <div className="mt-4 text-left">
+            <Alert tone="rose">{failedReason}</Alert>
+          </div>
+          <Button className="mt-6" onClick={() => navigate("/")}>
+            Start a new interview
+          </Button>
+        </Card>
       </Shell>
     );
   }

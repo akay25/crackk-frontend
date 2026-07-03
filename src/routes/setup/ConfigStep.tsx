@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { setConfig } from "../../api/session";
 import type { ConfigInput, Role } from "../../types/api";
-import { failedStage, reached } from "../../utils";
+import { failedStage, reached, errMessage } from "../../utils";
 import { Button, Input, Label, Spinner } from "../../components/ui";
 import { useSetup } from "../../context/SetupContext";
 import StepNav from "../../components/StepNav";
@@ -50,7 +50,8 @@ export default function ConfigStep() {
       setConfigDirty(false); // saved — disable until the next edit
       await refresh();
     } catch (e) {
-      setErr(String(e));
+      setErr(errMessage(e));
+      await refresh(); // a 409 may mean a session-level failure — re-pull to reflect it
     } finally {
       setConfigBusy(false);
     }

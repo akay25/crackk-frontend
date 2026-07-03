@@ -1,6 +1,14 @@
+// Overall session status (SessionStatus on the backend). "failed" is terminal — the
+// session cannot advance any further (e.g. blocked by the conflict-of-interest gate),
+// and `failed_reason` carries the human-readable message.
+export type SessionOverallStatus = "init" | "in_progress" | "completed" | "failed";
+
 export interface Session {
   id: string;
   status: string;
+  // Overall, session-level status; "failed" (+ failed_reason) is terminal.
+  session_status: SessionOverallStatus;
+  failed_reason: string | null;
   job_url: string | null;
   jd_source: "scraped" | "pasted" | null;
   jd_text: string | null;

@@ -3,7 +3,7 @@
 // distinguishes a "not technical" rejection from a generic processing failure.
 import { useState } from "react";
 import { setJob } from "../../api/session";
-import { failedStage } from "../../utils";
+import { failedStage, errMessage } from "../../utils";
 import {
   Alert,
   Badge,
@@ -37,7 +37,10 @@ export default function JdStep() {
       await setJob(sessionId, { jd_text: jdText.trim() });
       await refresh();
     } catch (e) {
-      setErr(String(e));
+      // Surface the backend reason (e.g. a 409 conflict-of-interest block), then
+      // re-pull the session so a resulting session-level failure takes over the UI.
+      setErr(errMessage(e));
+      await refresh();
     } finally {
       setJobBusy(false);
     }

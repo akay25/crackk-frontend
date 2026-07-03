@@ -19,4 +19,6 @@ export interface SessionState {
   stage: string | null;
   status: string | null;
   reason: string | null; // human-readable note on some events
+  // Overall session status carried on every UPDATE; "failed" is terminal.
+  session_status: string | null;
 }

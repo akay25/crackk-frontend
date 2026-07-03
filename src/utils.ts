@@ -1,5 +1,12 @@
 import { LOCAL_STORAGE, ROUTE_KEY } from "./constants";
 
+/** Best-effort human message from a thrown API error: prefer the backend's `detail`
+ * (e.g. a 409 reason like the conflict-of-interest block) over the raw AxiosError text. */
+export function errMessage(e: unknown): string {
+  const detail = (e as any)?.response?.data?.detail;
+  return typeof detail === "string" ? detail : String(e);
+}
+
 export function getOrCreateUserId(): string {
   let id = localStorage.getItem(LOCAL_STORAGE.USER_TOKEN);
   if (!id) {
