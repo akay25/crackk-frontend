@@ -21,6 +21,7 @@ export default function CallStage({
   phase,
   captions,
   analyser,
+  vad,
   muted,
   onToggleMute,
   ending,
@@ -31,6 +32,7 @@ export default function CallStage({
   phase: CallPhase;
   captions: Caption[];
   analyser: AnalyserNode | null;
+  vad: { remainingMs: number; totalMs: number } | null;
   muted: boolean;
   onToggleMute: () => void;
   ending: boolean;
@@ -101,7 +103,7 @@ export default function CallStage({
 
       {/* Live mic level — shows whether the candidate is speaking. */}
       <div className="mt-6 flex justify-center">
-        <MicMeter analyser={analyser} phase={phase} muted={muted} />
+        <MicMeter analyser={analyser} phase={phase} vad={vad} muted={muted} />
       </div>
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">

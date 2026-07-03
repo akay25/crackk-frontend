@@ -29,6 +29,10 @@ export default function Interview() {
   const [phase, setPhase] = useState<CallPhase>("connecting");
   const [captions, setCaptions] = useState<Caption[]>([]);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
+  // End-of-turn countdown: ms left before the current utterance is sent (null until known).
+  const [vad, setVad] = useState<{ remainingMs: number; totalMs: number } | null>(
+    null,
+  );
   const [muted, setMuted] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
@@ -71,6 +75,8 @@ export default function Interview() {
         onError: (m) => setErr(m),
         onClose: () => setScreen("ended"),
         onAnalyser: (a) => setAnalyser(a),
+        onVadProgress: (remainingMs, totalMs) =>
+          setVad({ remainingMs, totalMs }),
       });
       clientRef.current = client;
       await client.start();
@@ -217,6 +223,7 @@ export default function Interview() {
         phase={phase}
         captions={captions}
         analyser={analyser}
+        vad={vad}
         muted={muted}
         onToggleMute={toggleMute}
         ending={ending}

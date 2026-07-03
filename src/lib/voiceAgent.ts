@@ -29,6 +29,12 @@ export interface VoiceAgentHandlers {
   // Fired when the mic analyser is ready (capture start) / gone (teardown), so the UI
   // can draw a live input-level graph. Optional.
   onAnalyser?: (analyser: AnalyserNode | null) => void;
+  // Fired as the end-of-turn silence timer advances, so the UI can show a countdown
+  // gauge of how long until the current utterance is sent. `remainingMs` drains from
+  // `totalMs` (END_SILENCE_MS) toward 0 during trailing silence and springs back to
+  // full the instant the candidate speaks again (or when no utterance is in progress).
+  // Optional.
+  onVadProgress?: (remainingMs: number, totalMs: number) => void;
 }
 
 // --- energy-VAD tuning ------------------------------------------------------
@@ -38,7 +44,7 @@ const FRAME_MS = (FRAME / TARGET_SR) * 1000;
 const START_RMS = 0.018; // above this = speech onset
 const KEEP_RMS = 0.009; // hysteresis: stay in speech until below this (low → tolerate quiet tails)
 const START_MS = 160; // sustained voice needed to start capturing
-const END_SILENCE_MS = 1400; // trailing silence that ends an utterance (higher → waits longer before replying)
+const END_SILENCE_MS = 2200; // trailing silence that ends an utterance (higher → waits longer before replying)
 const MIN_UTTERANCE_MS = 300; // drop shorter blips (coughs / clicks)
 
 export class VoiceAgentClient {
@@ -189,6 +195,17 @@ export class VoiceAgentClient {
     } else {
       this.voicedMs = 0;
     }
+
+    this.emitVad();
+  }
+
+  /** Push the current end-of-turn countdown to the UI: time left before the in-progress
+   * utterance is sent. Full while speaking or when nothing is captured yet. */
+  private emitVad(): void {
+    const remaining = this.capturing
+      ? Math.max(0, END_SILENCE_MS - this.silenceMs)
+      : END_SILENCE_MS;
+    this.h.onVadProgress?.(remaining, END_SILENCE_MS);
   }
 
   private finishUtterance(): void {

@@ -10,10 +10,12 @@ const SPEAKING_LEVEL = 0.07; // avg normalized level above which we call it "spe
 export default function MicMeter({
   analyser,
   phase,
+  vad,
   muted = false,
 }: {
   analyser: AnalyserNode | null;
   phase: CallPhase;
+  vad?: { remainingMs: number; totalMs: number } | null;
   muted?: boolean;
 }) {
   const barRefs = useRef<Array<HTMLSpanElement | null>>([]);
@@ -89,6 +91,13 @@ export default function MicMeter({
   const live = phase === "listening" && !muted;
   const active = speaking && live;
 
+  // End-of-turn countdown gauge: full while speaking (or before any speech), drains
+  // through the trailing silence, and refills the instant the candidate speaks again.
+  const fraction = vad
+    ? Math.max(0, Math.min(1, vad.remainingMs / vad.totalMs))
+    : 1;
+  const draining = live && fraction < 0.995;
+
   const label = muted
     ? "Microphone muted"
     : phase === "speaking"
@@ -97,9 +106,11 @@ export default function MicMeter({
         ? "Thinking…"
         : phase === "connecting"
           ? "Connecting…"
-          : speaking
-            ? "You're speaking"
-            : "Listening — go ahead";
+          : draining
+            ? `Sending in ${(vad!.remainingMs / 1000).toFixed(1)}s`
+            : speaking
+              ? "You're speaking"
+              : "Listening — go ahead";
 
   return (
     <div
@@ -157,6 +168,26 @@ export default function MicMeter({
           />
         ))}
       </div>
+
+      {/* End-of-turn countdown gauge — how long until this utterance is sent. */}
+      {live && (
+        <div
+          className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-slate-200"
+          title={`Sending in ${(fraction * (vad?.totalMs ?? 0) / 1000).toFixed(1)}s`}
+        >
+          <div
+            className={cn(
+              "h-full rounded-full transition-[width] duration-150 ease-linear",
+              fraction > 0.5
+                ? "bg-indigo-400"
+                : fraction > 0.2
+                  ? "bg-amber-400"
+                  : "bg-rose-400",
+            )}
+            style={{ width: `${(fraction * 100).toFixed(1)}%` }}
+          />
+        </div>
+      )}
 
       <span className={cn("text-sm font-medium", muted ? "text-rose-500" : "text-slate-500")}>
         {label}
