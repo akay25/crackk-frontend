@@ -12,6 +12,7 @@ const STATE_LABEL: Record<
   listening: { label: "Listening", tone: "green" },
   thinking: { label: "Thinking", tone: "amber" },
   speaking: { label: "Speaking", tone: "indigo" },
+  completed: { label: "Interview complete", tone: "green" },
   ended: { label: "Ended", tone: "slate" },
   error: { label: "Error", tone: "rose" },
 };
@@ -40,7 +41,12 @@ export default function CallStage({
   err: string | null;
 }) {
   const meta = STATE_LABEL[phase] ?? { label: phase, tone: "slate" as const };
-  const live = phase !== "connecting" && phase !== "ended" && phase !== "error";
+  const completed = phase === "completed";
+  const live =
+    phase !== "connecting" &&
+    phase !== "ended" &&
+    phase !== "error" &&
+    !completed;
 
   const [showCaptions, setShowCaptions] = useState(true);
 
@@ -67,6 +73,13 @@ export default function CallStage({
       {err && (
         <div className="mt-4">
           <Alert>{err}</Alert>
+        </div>
+      )}
+
+      {completed && (
+        <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-800">
+          The interviewer has wrapped up the interview. Click{" "}
+          <strong>End call</strong> below to see your report.
         </div>
       )}
 
@@ -120,7 +133,7 @@ export default function CallStage({
           <Button
             variant="secondary"
             onClick={onToggleMute}
-            disabled={phase === "ended"}
+            disabled={phase === "ended" || completed}
             aria-pressed={muted}
             className={cn("px-4", muted && "!ring-rose-300 !text-rose-600")}
           >

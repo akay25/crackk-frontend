@@ -16,6 +16,7 @@ export type CallPhase =
   | "listening"
   | "thinking"
   | "speaking"
+  | "completed" // interviewer finished; input disabled, awaiting the candidate to end
   | "ended"
   | "error";
 
@@ -73,6 +74,9 @@ export class VoiceAgentClient {
 
   private muted = false;
   private ended = false;
+  // The interviewer signalled the interview is over: stop capturing, but keep the
+  // socket + playback alive so the closing audio finishes and the candidate ends the call.
+  private completed = false;
 
   constructor(
     private readonly wsUrl: string,
@@ -171,7 +175,7 @@ export class VoiceAgentClient {
   }
 
   private onFrame(frame: Float32Array): void {
-    if (this.muted || this.botSpeaking || this.ended) return; // ignore while muted / agent speaks
+    if (this.muted || this.botSpeaking || this.ended || this.completed) return; // muted / agent speaks / interview over
 
     let sum = 0;
     for (let i = 0; i < frame.length; i++) sum += frame[i] * frame[i];
@@ -247,6 +251,12 @@ export class VoiceAgentClient {
         this.appendInterviewer(m.text ?? "");
       } else if (m.type === "reply_done") {
         this.botCaptionIdx = null;
+      } else if (m.type === "completed") {
+        // Interview is over. Stop the mic (no more turns) but keep the connection so the
+        // closing audio plays out; the candidate ends the call from the UI.
+        this.completed = true;
+        this.setMuted(true);
+        this.h.onPhase("completed");
       } else if (m.type === "error") {
         this.h.onError(m.detail || "agent error");
       }
@@ -305,7 +315,7 @@ export class VoiceAgentClient {
       this.nextStartTime += buf.duration;
       this.playing = true;
       this.botSpeaking = true;
-      if (!this.ended) this.h.onPhase("speaking");
+      if (!this.ended && !this.completed) this.h.onPhase("speaking");
       src.onended = () => {
         if (
           ctx.currentTime >= this.nextStartTime - 0.05 &&
@@ -313,7 +323,8 @@ export class VoiceAgentClient {
         ) {
           this.playing = false;
           this.botSpeaking = false;
-          if (!this.ended) this.h.onPhase("listening");
+          // Don't fall back to "listening" once the interview is over — stay "completed".
+          if (!this.ended && !this.completed) this.h.onPhase("listening");
         }
       };
     }

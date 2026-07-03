@@ -63,13 +63,16 @@ export default function Interview() {
   const begin = useCallback(async () => {
     if (!sessionId) return;
     setErr(null);
-    setMuted(true);
+    setMuted(false);
     setJoining(true);
     try {
       const conn = handoff ?? (await joinCall(sessionId));
       const client = new VoiceAgentClient(conn.ws_url, {
         onPhase: (p) => {
           setPhase(p);
+          // Interview wrapped up by the interviewer: reflect the forced-mute in the UI
+          // (input is disabled; the candidate clicks End call to view their report).
+          if (p === "completed") setMuted(true);
           if (p === "ended") setScreen("ended");
         },
         onCaptions: (c) => setCaptions(c),
@@ -81,7 +84,7 @@ export default function Interview() {
       });
       clientRef.current = client;
       await client.start();
-      client.setMuted(true);
+      client.setMuted(false);
       setScreen("live");
     } catch (e: unknown) {
       const name = (e as { name?: string })?.name;
