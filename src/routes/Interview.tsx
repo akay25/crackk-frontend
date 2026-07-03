@@ -30,10 +30,11 @@ export default function Interview() {
   const [captions, setCaptions] = useState<Caption[]>([]);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   // End-of-turn countdown: ms left before the current utterance is sent (null until known).
-  const [vad, setVad] = useState<{ remainingMs: number; totalMs: number } | null>(
-    null,
-  );
-  const [muted, setMuted] = useState(true);
+  const [vad, setVad] = useState<{
+    remainingMs: number;
+    totalMs: number;
+  } | null>(null);
+  const [muted, setMuted] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
   const [ending, setEnding] = useState(false);
