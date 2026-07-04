@@ -192,23 +192,26 @@ export default function CallStage({
         </div>
       </div>
 
-      {/* Reload/leave warning — the call lives in this tab; leaving ends it. */}
-      <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs text-amber-600">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          className="size-3.5"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path
-            d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-        Don't reload or leave this page — it will end the interview.
-      </p>
+      {/* Reload/leave warning — the call lives in this tab; leaving ends it.
+          Irrelevant once the interview is over, so only shown mid-call. */}
+      {live && (
+        <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs text-amber-600">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            className="size-3.5"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          Don't reload or leave this page — it will end the interview.
+        </p>
+      )}
     </div>
   );
 }

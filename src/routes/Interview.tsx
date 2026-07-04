@@ -49,16 +49,17 @@ export default function Interview() {
   }, []);
 
   // Warn before reload / close / navigation while the call is live — leaving the
-  // tab drops the WebSocket, which ends the interview.
+  // tab drops the WebSocket, which ends the interview. Once the interviewer has
+  // wrapped up ("completed") there's nothing left to lose, so no warning.
   useEffect(() => {
-    if (screen !== "live") return;
+    if (screen !== "live" || phase === "completed") return;
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = ""; // required for Chrome to show the native prompt
     };
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [screen]);
+  }, [screen, phase]);
 
   const begin = useCallback(async () => {
     if (!sessionId) return;
