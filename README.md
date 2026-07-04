@@ -4,17 +4,17 @@ A thin React + Vite single-page app for an AI-conducted technical interview.
 
 A job-seeker uploads a resume and the job posting and picks difficulty / pay / role.
 The backend generates a **tailored interview**, an **AI voice agent conducts a live
-browser call** (LiveKit / WebRTC), and the app shows a **detailed, evidence-based
-report**. There is no SSR — JS runs here only for the in-browser WebRTC call. The
-static build can be served by any CDN or by the FastAPI backend.
+browser call** (self-hosted WebSocket voice agent), and the app shows a **detailed,
+evidence-based report**. There is no SSR — JS runs here only for the in-browser voice
+call. The static build can be served by any CDN or by the FastAPI backend.
 
 ## Stack
 
 - **React 18** + **React Router 6** (`createBrowserRouter`)
 - **Vite 5** build + dev server (`@vitejs/plugin-react`)
 - **Tailwind v4** via `@tailwindcss/vite` (no config files)
-- **`@livekit/components-react`** + `livekit-client` for the call screen
 - **axios** REST client, **socket.io-client** for the live status stream
+- **Web Audio API** voice-agent client (`src/lib/voiceAgent.ts`) for the call screen
 - **pdfjs-dist** for in-browser resume/report PDF preview
 
 ## Routes
@@ -31,7 +31,7 @@ reopened or rewound) and showing a not-found screen when the socket closes 4404.
   - `jd` — job URL, with a paste-JD fallback
   - `config` — difficulty / pay / role
   - `match` — eligibility / match result before building the interview
-- `/:sessionId/interview` — LiveKit call screen (mic, live captions, end call).
+- `/:sessionId/interview` — voice call screen (mic, live captions, end call).
 - `/:sessionId/report` — overall + per-competency scores, strengths, improvements,
   verbatim evidence, PDF download.
 - `*` — 404 page.
@@ -58,7 +58,9 @@ reopened or rewound) and showing a not-found screen when the socket closes 4404.
   replaces polling** — `SessionGate` drives routing off the combined status, Setup
   reacts when `resume` / `jd` flip ready/failed, and Report fetches once `report`
   is ready.
-- **`src/lib/livekit.ts`** — joins the LiveKit room with the token from the join call.
+- **`src/lib/voiceAgent.ts`** — voice-call client: connects to the agent WebSocket from
+  the join call, captures the mic (client-side VAD → one WAV per turn), and plays the
+  interviewer's reply audio.
 
 ## Layout
 
@@ -72,7 +74,7 @@ frontend/
     ├── utils.ts            # getOrCreateUserId(), helpers
     ├── api/                # axios instance + session endpoints
     ├── socket_io/          # live status socket client
-    ├── lib/livekit.ts      # LiveKit room join
+    ├── lib/voiceAgent.ts   # voice-call client (WS + mic VAD + audio playback)
     ├── context/            # SetupContext (shared stepper state)
     ├── routes/
     │   ├── Start.tsx
@@ -88,7 +90,7 @@ frontend/
 ## Run
 
 The frontend needs the backend running: API on `:8000` (uvicorn) + Celery worker +
-(optional) LiveKit agent + infra.
+voice agent + infra.
 
 ```bash
 npm install
