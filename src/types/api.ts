@@ -102,11 +102,17 @@ export interface MatchTriggerResponse {
   task_id: string;
 }
 
-// The browser opens this WebSocket directly against the self-hosted voice agent
-// (backend agent/server.py). The session_id in the path is the capability.
+// The agent takes ONE live call at a time. "ready": ws_url is set — the browser opens
+// that WebSocket directly against the self-hosted voice agent (backend agent/server.py;
+// the session_id in the path is the capability) and the slot is reserved for ~2 minutes.
+// "waiting": another candidate is on the call and this session is number `position` in
+// the FIFO queue — re-poll /join (and watch for the UPDATE event with
+// reason="call_slot_available") until ready.
 export interface JoinResponse {
-  ws_url: string;
+  status: "ready" | "waiting";
+  ws_url: string | null;
   session_id: string;
+  position: number | null;
 }
 
 export interface EndCallResponse {

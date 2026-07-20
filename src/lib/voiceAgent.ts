@@ -5,7 +5,9 @@
 //                       {"type":"end"} | {"type":"ping","t":...}
 //   server -> client : {"type":"transcript","text"}, {"type":"reply_chunk","text"},
 //                       binary WAV frame (audio for the preceding reply_chunk),
-//                       {"type":"reply_done"}, {"type":"pong"}, {"type":"error","detail"}
+//                       {"type":"reply_done"}, {"type":"pong"}, {"type":"error","detail"},
+//                       {"type":"busy","detail","position"} (another interview call is
+//                       live — the agent takes one call at a time; the socket closes)
 //
 // Turn-taking is client-side: we capture the mic, run a simple energy-based VAD to
 // detect end-of-utterance, encode the utterance to a 16 kHz mono WAV, and send it.
@@ -27,6 +29,10 @@ export interface VoiceAgentHandlers {
   onCaptions: (captions: Caption[]) => void;
   onError: (message: string) => void;
   onClose: () => void;
+  // Another candidate's call is live (the agent takes one at a time): the server sent
+  // {"type":"busy"} and is closing the socket. `position` is this session's spot in
+  // the wait queue. The normal onPhase("ended")/onClose path is suppressed. Optional.
+  onBusy?: (position: number | null) => void;
   // Fired when the mic analyser is ready (capture start) / gone (teardown), so the UI
   // can draw a live input-level graph. Optional.
   onAnalyser?: (analyser: AnalyserNode | null) => void;
@@ -238,7 +244,7 @@ export class VoiceAgentClient {
 
   private onMessage(ev: MessageEvent): void {
     if (typeof ev.data === "string") {
-      let m: { type?: string; text?: string; detail?: string };
+      let m: { type?: string; text?: string; detail?: string; position?: number };
       try {
         m = JSON.parse(ev.data);
       } catch {
@@ -257,6 +263,18 @@ export class VoiceAgentClient {
         this.completed = true;
         this.setMuted(true);
         this.h.onPhase("completed");
+      } else if (m.type === "busy") {
+        // One call at a time and someone else's is live; the server closes the socket
+        // after this frame. Mark ended first so onclose doesn't fire the normal
+        // "ended" path — the UI drops back to the waiting screen instead.
+        this.ended = true;
+        this.teardownAudio();
+        try {
+          this.ws?.close();
+        } catch {
+          /* ignore */
+        }
+        this.h.onBusy?.(typeof m.position === "number" ? m.position : null);
       } else if (m.type === "error") {
         this.h.onError(m.detail || "agent error");
       }

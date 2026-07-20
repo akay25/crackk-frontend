@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import { joinCall, endCall as endCallAPI } from "../api/session";
 import type { JoinResponse } from "../types/api";
+import { connectToWSSocket } from "../socket_io";
 import { Alert, Button, Card, Shell, Spinner } from "../components/ui";
 import CallStage from "../components/CallStage";
 import {
@@ -24,8 +25,18 @@ export default function Interview() {
   // audio-playback prompt happens inside a user gesture.
   const handoff =
     (location.state as { conn?: JoinResponse } | null)?.conn ?? null;
+  // A handed-off connection is single-use: after a busy/waiting round-trip its
+  // ws_url may be stale, so every retry goes through joinCall again.
+  const handoffRef = useRef<JoinResponse | null>(handoff);
 
   const [screen, setScreen] = useState<Screen>("idle");
+  // The agent takes one call at a time. `waiting` = someone else is on the call
+  // (we're in the FIFO queue at `queuePos`); `claimable` = /join handed us the
+  // slot (reserved ~2 min) and we're showing "It's your turn — join now" so the
+  // mic/audio setup still happens inside a click.
+  const [waiting, setWaiting] = useState(false);
+  const [queuePos, setQueuePos] = useState<number | null>(null);
+  const [claimable, setClaimable] = useState(false);
   const [phase, setPhase] = useState<CallPhase>("connecting");
   const [captions, setCaptions] = useState<Caption[]>([]);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
@@ -67,7 +78,18 @@ export default function Interview() {
     setMuted(false);
     setJoining(true);
     try {
-      const conn = handoff ?? (await joinCall(sessionId));
+      const conn = handoffRef.current ?? (await joinCall(sessionId));
+      handoffRef.current = null;
+      if (!conn.ws_url) {
+        // Another candidate is on the call — wait in line; the effect below
+        // re-polls /join until the slot is ours.
+        setQueuePos(conn.position ?? null);
+        setClaimable(false);
+        setWaiting(true);
+        return;
+      }
+      setWaiting(false);
+      setClaimable(false);
       const client = new VoiceAgentClient(conn.ws_url, {
         onPhase: (p) => {
           setPhase(p);
@@ -79,6 +101,14 @@ export default function Interview() {
         onCaptions: (c) => setCaptions(c),
         onError: (m) => setErr(m),
         onClose: () => setScreen("ended"),
+        onBusy: (position) => {
+          // Lost the slot race between /join and the WS connect: back to the line.
+          clientRef.current = null;
+          setScreen("idle");
+          setQueuePos(position);
+          setClaimable(false);
+          setWaiting(true);
+        },
         onAnalyser: (a) => setAnalyser(a),
         onVadProgress: (remainingMs, totalMs) =>
           setVad({ remainingMs, totalMs }),
@@ -97,7 +127,46 @@ export default function Interview() {
     } finally {
       setJoining(false);
     }
-  }, [sessionId, handoff]);
+  }, [sessionId]);
+
+  // While waiting for the call slot, re-poll /join every 10s and listen for the
+  // "call_slot_available" UPDATE over Socket.IO (whichever fires first). When /join
+  // hands back a ws_url the slot is reserved for us (~2 min) — flip to "claimable"
+  // and let the candidate click Join, so mic capture starts inside a user gesture.
+  useEffect(() => {
+    if (!waiting || claimable || !sessionId) return;
+    let cancelled = false;
+    let claiming = false;
+    const tryClaim = async () => {
+      if (claiming) return;
+      claiming = true;
+      try {
+        const conn = await joinCall(sessionId);
+        if (cancelled) return;
+        if (conn.ws_url) {
+          setClaimable(true);
+        } else {
+          setQueuePos(conn.position ?? null);
+        }
+      } catch {
+        /* transient — keep polling */
+      } finally {
+        claiming = false;
+      }
+    };
+    const iv = setInterval(tryClaim, 10_000);
+    const socket = connectToWSSocket(sessionId);
+    const onUpdate = (m: { reason?: string | null }) => {
+      if (m?.reason === "call_slot_available") void tryClaim();
+    };
+    socket.on("UPDATE", onUpdate);
+    return () => {
+      cancelled = true;
+      clearInterval(iv);
+      socket.off("UPDATE", onUpdate);
+      socket.disconnect();
+    };
+  }, [waiting, claimable, sessionId]);
 
   const end = useCallback(async () => {
     setEnding(true);
@@ -118,6 +187,79 @@ export default function Interview() {
   useEffect(() => {
     return () => clientRef.current?.end();
   }, []);
+
+  if (screen === "idle" && waiting) {
+    return (
+      <Shell>
+        <Card className="text-center">
+          <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-sm shadow-indigo-500/30">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              className="size-7"
+              stroke="currentColor"
+              strokeWidth={1.8}
+            >
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v5l3 3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          {claimable ? (
+            <>
+              <h1 className="mt-5 text-2xl font-bold tracking-tight text-slate-900">
+                It's your turn!
+              </h1>
+              <p className="mx-auto mt-2 max-w-sm text-slate-600">
+                The interviewer is free and your spot is reserved for about two
+                minutes. Join now to start your interview.
+              </p>
+              {err && (
+                <div className="mt-5 text-left">
+                  <Alert>{err}</Alert>
+                </div>
+              )}
+              <Button
+                onClick={begin}
+                disabled={joining}
+                className="mt-6 px-6 py-3 text-base"
+              >
+                {joining ? (
+                  <>
+                    <Spinner /> Connecting…
+                  </>
+                ) : (
+                  "Join the interview"
+                )}
+              </Button>
+            </>
+          ) : (
+            <>
+              <h1 className="mt-5 text-2xl font-bold tracking-tight text-slate-900">
+                Waiting for your turn
+              </h1>
+              <p className="mx-auto mt-2 max-w-sm text-slate-600">
+                Another candidate is being interviewed right now — interviews
+                run one at a time.
+                {queuePos != null && (
+                  <>
+                    {" "}
+                    You're <span className="font-semibold text-slate-900">
+                      #{queuePos}
+                    </span>{" "}
+                    in line.
+                  </>
+                )}
+              </p>
+              <p className="mx-auto mt-3 flex max-w-sm items-center justify-center gap-2 text-sm text-slate-500">
+                <Spinner /> This page updates automatically — keep it open and
+                we'll let you know the moment it's your turn.
+              </p>
+            </>
+          )}
+        </Card>
+      </Shell>
+    );
+  }
 
   if (screen === "idle") {
     return (
