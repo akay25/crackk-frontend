@@ -21,6 +21,38 @@ function humanize(name: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+// One labeled line of chips (matched / no-evidence / missing skills) under a
+// dimension bar. Renders nothing when the list is absent (legacy match rows).
+function ChipRow({
+  label,
+  items,
+  chipClass,
+}: {
+  label: string;
+  items?: string[];
+  chipClass: string;
+}) {
+  if (!items?.length) return null;
+  return (
+    <div className="mt-1.5 flex flex-wrap items-baseline gap-1">
+      <span className="mr-1 shrink-0 text-xs font-medium text-slate-500">
+        {label} ({items.length})
+      </span>
+      {items.map((item) => (
+        <span
+          key={item}
+          className={cn(
+            "rounded-md px-1.5 py-0.5 text-[11px] font-medium",
+            chipClass,
+          )}
+        >
+          {item}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export default function MatchResultCard({
   result,
   eligible,
@@ -96,6 +128,21 @@ export default function MatchResultCard({
             {d.rationale && (
               <p className="mt-1.5 text-xs text-slate-500">{d.rationale}</p>
             )}
+            <ChipRow
+              label="Matched"
+              items={d.matched}
+              chipClass="bg-emerald-50 text-emerald-700"
+            />
+            <ChipRow
+              label="No evidence · half credit"
+              items={d.unevidenced}
+              chipClass="bg-amber-50 text-amber-700"
+            />
+            <ChipRow
+              label="Missing"
+              items={d.missing}
+              chipClass="bg-rose-50 text-rose-600"
+            />
           </div>
         ))}
       </div>

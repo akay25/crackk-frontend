@@ -84,7 +84,11 @@ export interface MatchDimension {
   name: string; // e.g. "core_skills" — humanized for display
   score: number; // 0–100
   weight: number; // contribution to the overall score, as a percentage
-  rationale: string;
+  rationale: string; // short headline; the lists below carry the detail
+  // structured lists (skills / certifications dimensions; absent on legacy rows)
+  matched?: string[];
+  unevidenced?: string[]; // listed on the resume but no supporting evidence
+  missing?: string[];
 }
 
 export interface MatchResult {
